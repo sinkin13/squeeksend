@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Squeektoshi's Diary — a living story, one round at a time</title>
+<meta name="description" content="The diary of a real hamster who turns a real wheel and settles real rounds on Squeekchain. Every entry is generated from live hardware telemetry and on-chain events. The painting grows with her work.">
+<style>
+  :root{
+    --bg:#0a0712; --paper:#f3ecdc; --ink:#1a1410; --panel:#130e20; --line:#261d3c;
+    --text:#f2ecff; --dim:#a094c6; --mint:#96fce4; --mint2:#3fc9a6;
+    --gold:#ffd78a; --violet:#b48cff; --hot:#ff8f85;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{
+    background:
+      radial-gradient(1200px 560px at 50% -14%,#2b1d4d 0%,transparent 60%),
+      var(--bg);
+    color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    min-height:100vh;padding:0 0 70px;
+  }
+  .wrap{max-width:940px;margin:0 auto;padding:0 18px}
+
+  header{padding:38px 0 8px;text-align:center}
+  .kicker{font-size:10px;letter-spacing:.34em;color:var(--dim)}
+  h1{font-family:var(--serif);font-size:clamp(30px,6.4vw,52px);letter-spacing:-.9px;
+     margin:12px 0 6px;font-weight:600;line-height:1.06}
+  h1 em{font-style:italic;background:linear-gradient(120deg,var(--mint),var(--violet));
+        -webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--dim);font-size:14px;max-width:560px;margin:0 auto;line-height:1.7}
+
+  /* live strip */
+  .live{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:26px}
+  @media(max-width:640px){.live{grid-template-columns:repeat(2,1fr)}}
+  .lv{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px 13px;text-align:center}
+  .lv .k{font-size:8.5px;letter-spacing:.19em;color:var(--dim);margin-bottom:5px}
+  .lv .v{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--mint);
+         font-variant-numeric:tabular-nums}
+  .lv.idle .v{color:var(--dim)}
+  .lv.hot .v{color:var(--gold)}
+  .state{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;
+         font-size:12px;color:var(--dim);letter-spacing:.1em}
+  .sd{width:8px;height:8px;border-radius:50%;background:var(--mint2);box-shadow:0 0 12px var(--mint2)}
+  .sd.idle{background:#5c5480;box-shadow:none}
+  .sd.run{background:var(--gold);box-shadow:0 0 14px var(--gold);animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.35}}
+
+  /* painting + intro */
+  .stage{display:grid;grid-template-columns:1.05fr .95fr;gap:20px;margin-top:30px;align-items:start}
+  @media(max-width:760px){.stage{grid-template-columns:1fr}}
+  .frame{background:var(--paper);border-radius:6px;padding:11px 11px 34px;
+         box-shadow:0 24px 60px #000b,0 0 0 1px #00000033 inset;transform:rotate(-1.1deg)}
+  canvas{width:100%;height:auto;display:block;border-radius:2px;background:#efe6d2}
+  .caption{font-family:var(--serif);font-size:11.5px;color:#6d6152;text-align:center;
+           margin-top:9px;font-style:italic;letter-spacing:.02em}
+  .meta{font-size:12px;color:var(--dim);line-height:1.75;margin-top:6px}
+  .meta b{color:var(--text)}
+  .meta .row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #ffffff08}
+  .meta .row:last-child{border-bottom:none}
+  .meta .mv{font-family:var(--mono);color:var(--mint)}
+
+  /* diary */
+  .diary{margin-top:44px}
+  .dhead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;gap:10px;flex-wrap:wrap}
+  h2{font-family:var(--serif);font-size:20px;font-weight:600;letter-spacing:-.2px}
+  .dcount{font-size:11.5px;color:var(--dim)}
+  .entry{position:relative;padding:0 0 24px 30px;border-left:1px solid var(--line);margin-left:6px}
+  .entry:last-child{border-left-color:transparent}
+  .entry::before{content:'';position:absolute;left:-4.5px;top:5px;width:8px;height:8px;
+                 border-radius:50%;background:var(--mint2);box-shadow:0 0 10px var(--mint2)}
+  .entry.gold::before{background:var(--gold);box-shadow:0 0 12px var(--gold)}
+  .entry.violet::before{background:var(--violet);box-shadow:0 0 10px var(--violet)}
+  .entry.quiet::before{background:#4a4166;box-shadow:none}
+  .edate{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--dim);margin-bottom:5px}
+  .etext{font-family:var(--serif);font-size:16.5px;line-height:1.62;color:var(--text)}
+  .etext em{color:var(--mint);font-style:italic}
+  .etag{display:inline-block;margin-top:7px;font-size:9.5px;letter-spacing:.14em;color:var(--dim);
+        border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+  .new{animation:slide .5s}
+  @keyframes slide{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+
+  .empty{color:var(--dim);font-size:13px;padding:20px 0;line-height:1.7}
+  .pillnote{display:inline-block;margin-top:18px;font-size:11.5px;color:var(--dim);
+            border:1px dashed var(--line);border-radius:10px;padding:9px 13px;line-height:1.6}
+
+  footer{margin-top:50px;text-align:center;font-size:11px;color:#6a6088;line-height:1.8}
+  footer a{color:var(--mint2);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">SQUEEKCHAIN · SEPOLIA · LIVE HARDWARE</div>
+    <h1>Squeektoshi's <em>Diary</em></h1>
+    <p class="sub">A real hamster turns a real wheel, and real rounds settle on-chain because of it. This is her diary — every entry generated from live telemetry, every brushstroke earned by her distance.</p>
+
+    <div class="live">
+      <div class="lv" id="lvstatus"><div class="k">SHE IS</div><div class="v" id="vstatus">…</div></div>
+      <div class="lv" id="lvrpm"><div class="k">RPM</div><div class="v" id="vrpm">—</div></div>
+      <div class="lv" id="lvspeed"><div class="k">SPEED</div><div class="v" id="vspeed">—</div></div>
+      <div class="lv hot" id="lvwork"><div class="k">TOTAL TURNS</div><div class="v" id="vwork">—</div></div>
+    </div>
+    <div class="state"><span class="sd idle" id="sd"></span><span id="statetext">reading the wheel…</span></div>
+  </header>
+
+  <div class="stage">
+    <div>
+      <div class="frame">
+        <canvas id="art" width="600" height="600"></canvas>
+        <div class="caption" id="caption">day one — nothing painted yet</div>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div class="row"><span>Round settled</span><span class="mv" id="mround">—</span></div>
+      <div class="row"><span>Block height</span><span class="mv" id="mblock">—</span></div>
+      <div class="row"><span>Distance today</span><span class="mv" id="mdist">—</span></div>
+      <div class="row"><span>Brushstrokes</span><span class="mv" id="mstrokes">0</span></div>
+      <div class="row"><span>Work per stroke</span><span class="mv">1,000 turns</span></div>
+      <p class="pillnote">
+        The painting is derived from her <b>cumulative work units</b>. Every 1,000 turns adds one
+        stroke, in a colour picked by the round that closed. It only ever grows — never redrawn.
+      </p>
+    </div>
+  </div>
+
+  <div class="diary">
+    <div class="dhead">
+      <h2>Her entries</h2>
+      <span class="dcount" id="dcount">—</span>
+    </div>
+    <div id="entries"><div class="empty">waiting for the first entry…</div></div>
+  </div>
+
+  <footer>
+    Data from <span style="font-family:var(--mono)">api.squeekchain.com/v1/status</span> and
+    <span style="font-family:var(--mono)">/v1/events</span> — hardware provenance, settled on
+    Ethereum Sepolia (11155111).<br>
+    Built for <a href="https://squeekchain.com" target="_blank" rel="noopener">Squeekchain</a>.
+    Entries are kept in this browser so the story continues where you left it.
+  </footer>
+</div>
+
+<script>
+/* =====================================================================
+   Squeektoshi's Diary
+   - live telemetry: api.squeekchain.com/v1/status  (hardware provenance)
+   - history:        api.squeekchain.com/v1/events  (chain + system events)
+   - the painting grows with cumulativeWorkUnits, never redrawn
+   ===================================================================== */
+const API = 'https://api.squeekchain.com';
+const STORE = 'squeektoshi_diary_v1';
+const STROKE_EVERY = 1000;          // work units per brushstroke
+
+const $ = id => document.getElementById(id);
+const cv = $('art'), ctx = cv.getContext('2d');
+const W = 600, H = 600;
+
+let state = null;
+let entries = [];       // {ts, type, text, tag, tone}
+let strokes = 0;
+let lastWork = 0;
+let pollTimer = null;
+
+/* ---------------- storage ---------------- */
+function load(){
+  try{
+    const s = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (s && Array.isArray(s.entries)){ entries = s.entries; strokes = s.strokes || 0; }
+  }catch(e){}
+}
+function save(){
+  try{
+    localStorage.setItem(STORE, JSON.stringify({ entries: entries.slice(0, 120), strokes }));
+  }catch(e){}
+}
+
+/* ---------------- deterministic art ---------------- */
+function hash32(str){
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const PALETTE = ['#3fc9a6','#96fce4','#b48cff','#ffd78a','#ff8f85','#8cc4ff','#e8d5a3','#c9a0dc'];
+
+/* draw one stroke, fully determined by (index, seed) */
+function paintStroke(index, seed){
+  const rnd = mulberry(hash32(String(index) + ':' + seed));
+  const col = PALETTE[Math.floor(rnd() * PALETTE.length)];
+  ctx.save();
+  ctx.globalAlpha = 0.16 + rnd() * 0.26;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.2 + rnd() * 6;
+  ctx.lineCap = 'round';
+
+  const mode = Math.floor(rnd() * 4);
+  if (mode === 0){                       // arc
+    const cx = rnd() * W, cy = rnd() * H, r = 30 + rnd() * 190;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, rnd() * Math.PI * 2, rnd() * Math.PI * 2);
+    ctx.stroke();
+  } else if (mode === 1){                // long curve
+    ctx.beginPath();
+    const x0 = rnd() * W, y0 = rnd() * H;
+    ctx.moveTo(x0, y0);
+    ctx.bezierCurveTo(rnd()*W, rnd()*H, rnd()*W, rnd()*H, rnd()*W, rnd()*H);
+    ctx.stroke();
+  } else if (mode === 2){                // hatch
+    const x = rnd() * W, y = rnd() * H, len = 24 + rnd() * 90;
+    for (let i = 0; i < 4; i++){
+      ctx.beginPath();
+      ctx.moveTo(x + i * 7, y);
+      ctx.lineTo(x + i * 7 + len * .4, y + len);
+      ctx.stroke();
+    }
+  } else {                               // dots
+    for (let i = 0; i < 14; i++){
+      ctx.beginPath();
+      ctx.arc(rnd()*W, rnd()*H, .8 + rnd()*3.4, 0, Math.PI*2);
+      ctx.fillStyle = col;
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function paintTo(target){
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#efe6d2';
+  ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < target; i++) paintStroke(i, 7);
+  // a faint wheel ghost so it always reads as "her"
+  ctx.save();
+  ctx.globalAlpha = .07;
+  ctx.strokeStyle = '#1a1410';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(W/2, H/2, 168, 0, Math.PI*2); ctx.stroke();
+  for (let a = 0; a < 12; a++){
+    const ang = a / 12 * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(W/2, H/2);
+    ctx.lineTo(W/2 + Math.cos(ang) * 168, H/2 + Math.sin(ang) * 168);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---------------- diary text ---------------- */
+const fmt = n => Number(n).toLocaleString('en-US');
+
+function entryFor(ev){
+  const t = ev.type || '';
+  const p = ev.payload || {};
+  const when = (ev.occurredAt || '').slice(0, 16).replace('T', ' ');
+
+  if (t === 'system.mining_checkpointed'){
+    const work = p.cumulativeWork ? fmt(p.cumulativeWork) : '?';
+    const to = p.throughRound || '?';
+    return {
+      tone: 'gold',
+      tag: 'ROUND ' + to,
+      text: `Round ${to} closed. She has turned the wheel <em>${work}</em> times now, and every one of them is written on a chain she will never read.`
+    };
+  }
+  if (t === 'system.settlement_completed'){
+    return {
+      tone: 'gold',
+      tag: 'SETTLED',
+      text: `A settlement landed. Somewhere a machine did the arithmetic and agreed with her. She has no idea, and that is the whole point.`
+    };
+  }
+  if (t === 'account.rewards_staked'){
+    return {
+      tone: '', tag: 'STAKED',
+      text: `Someone staked their faith in her again. They have never met her. She has never met anyone.`
+    };
+  }
+  if (t === 'account.rewards_claimed'){
+    return {
+      tone: '', tag: 'CLAIMED',
+      text: `A reward was claimed — earned by turns she does not remember taking.`
+    };
+  }
+  if (t === 'account.sqk_staked'){
+    return {
+      tone: 'violet', tag: 'SQK',
+      text: `More SQK went into the ground, the way seeds do. All of it rooted in one small animal's afternoon.`
+    };
+  }
+  if (t === 'nft.merged'){
+    return { tone: 'violet', tag: 'MERGED', text: `Two Squeeks became one. She kept running through it.` };
+  }
+  if (t === 'nft.deposited'){
+    return { tone: 'violet', tag: 'DEPOSIT', text: `A Squeeks came home to the wheel. It will earn its keep the same way she does: quietly, in circles.` };
+  }
+  if (t === 'nft.withdrawn'){
+    return { tone: 'quiet', tag: 'WITHDRAWN', text: `A Squeeks left the wheel behind. The chain did not notice. She did not either.` };
+  }
+  return null;
+}
+
+function idleEntry(st){
+  const m = st.measurement || {};
+  const r = (st.builder && st.builder.anchor && st.builder.anchor.settledThroughRound) || '?';
+  const options = [
+    `She is asleep. The wheel is still. Round ${r} waits on the other side of her waking up.`,
+    `Nothing on the wheel. ${fmt(m.cumulativeWorkUnits || 0)} turns behind her, an unknown number ahead.`,
+    `Resting. Somewhere a queue of rounds is patient, because patience is the only thing it can afford.`,
+    `No motion. The chain holds its breath until she decides otherwise.`
+  ];
+  return { tone: 'quiet', tag: 'IDLE', text: options[hash32(String(r)) % options.length] };
+}
+
+function runEntry(st){
+  const m = st.measurement || {};
+  const rpm = (Number(m.rpmMilli || 0) / 1000).toFixed(2);
+  const speed = (Number(m.speedMmPerSecond || 0) / 1000).toFixed(2);
+  return {
+    tone: 'gold', tag: 'RUNNING',
+    text: `She is running — <em>${rpm} rpm</em>, ${speed} m/s. Every turn is a unit of work, and work is the only thing here that cannot be faked.`
+  };
+}
+
+function addEntry(e){
+  const ts = Date.now();
+  if (entries.length && entries[0].text === e.text && ts - entries[0].ts < 60000) return false;
+  entries.unshift({ ts, type: e.tone || '', text: e.text, tag: e.tag || '' });
+  if (entries.length > 120) entries.pop();
+  save();
+  return true;
+}
+
+function renderEntries(){
+  const box = $('entries');
+  if (!entries.length){
+    box.innerHTML = '<div class="empty">waiting for the first entry…</div>';
+    $('dcount').textContent = '—';
+    return;
+  }
+  box.innerHTML = entries.slice(0, 40).map((e, i) => {
+    const d = new Date(e.ts);
+    const ds = d.toISOString().slice(0, 16).replace('T', ' ');
+    return `<div class="entry ${e.type || ''}${i === 0 ? ' new' : ''}">
+      <div class="edate">${ds} UTC</div>
+      <div class="etext">${e.text}</div>
+      ${e.tag ? `<span class="etag">${e.tag}</span>` : ''}
+    </div>`;
+  }).join('');
+  $('dcount').textContent = entries.length + (entries.length === 1 ? ' entry' : ' entries') + ' saved in this browser';
+}
+
+/* ---------------- polling ---------------- */
+async function getJSON(path){
+  const r = await fetch(API + path, { cache: 'no-store' });
+  if (!r.ok) throw new Error('http ' + r.status);
+  return r.json();
+}
+
+async function refresh(){
+  try{
+    const st = await getJSON('/v1/status');
+    state = st;
+    const m = st.measurement || {};
+    const b = (st.builder && st.builder.anchor) || {};
+
+    // live strip
+    const running = (m.coreStatus || '').toUpperCase() === 'RUNNING' ||
+                    Number(m.rpmMilli || 0) > 0 || Number(m.speedMmPerSecond || 0) > 0;
+    $('vstatus').textContent = running ? 'RUNNING' : (m.coreStatus || 'IDLE');
+    $('lvstatus').className = 'lv' + (running ? ' hot' : ' idle');
+    $('sd').className = 'sd ' + (running ? 'run' : 'idle');
+    $('statetext').textContent = running
+      ? 'wheel turning · telemetry live'
+      : 'wheel still · waiting for her';
+
+    $('vrpm').textContent = (Number(m.rpmMilli || 0) / 1000).toFixed(2);
+    $('lvrpm').className = 'lv' + (Number(m.rpmMilli||0) > 0 ? ' hot' : ' idle');
+    $('vspeed').textContent = (Number(m.speedMmPerSecond || 0) / 1000).toFixed(2) + ' m/s';
+    $('lvspeed').className = 'lv' + (Number(m.speedMmPerSecond||0) > 0 ? ' hot' : ' idle');
+    $('vwork').textContent = fmt(m.cumulativeWorkUnits || 0);
+
+    $('mround').textContent = b.settledThroughRound || '—';
+    $('mblock').textContent = fmt(b.blockHeight || 0);
+    $('mdist').textContent = (Number(m.distanceMm || 0) / 1000).toFixed(2) + ' m';
+
+    // grow the painting
+    const work = Number(m.cumulativeWorkUnits || 0);
+    const target = Math.floor(work / STROKE_EVERY);
+    if (target > strokes){
+      const from = strokes;
+      strokes = target;
+      for (let i = from; i < strokes; i++) paintStroke(i, 7);
+      $('mstrokes').textContent = strokes;
+      $('caption').textContent = `day ${Math.ceil(strokes / 8)} — ${strokes} strokes, ${fmt(work)} turns`;
+      save();
+    } else if (strokes === 0){
+      paintTo(0);
+      $('mstrokes').textContent = '0';
+    }
+
+    // diary entry from status
+    const e = running ? runEntry(st) : idleEntry(st);
+    if (addEntry(e)) renderEntries();
+  }catch(err){
+    $('statetext').textContent = 'api unreachable — retrying…';
+    $('sd').className = 'sd idle';
+  }
+}
+
+async function refreshEvents(){
+  try{
+    const d = await getJSON('/v1/events');
+    const evs = (d.events || []).filter(e => {
+      const t = e.type || '';
+      return t.startsWith('system.') || t.startsWith('account.') || t.startsWith('nft.');
+    });
+    // oldest → newest so unshift keeps newest on top
+    const chrono = evs.slice().reverse();
+    let added = 0;
+    for (const ev of chrono){
+      const e = entryFor(ev);
+      if (!e) continue;
+      // de-dup by tag+round
+      const key = (e.tag || '') + '|' + (ev.payload && (ev.payload.throughRound || ev.payload.tokenId) || '') + '|' + (ev.occurredAt || '').slice(0, 16);
+      if (entries.some(x => x.key === key)) continue;
+      entries.unshift({ ts: Date.parse(ev.occurredAt) || Date.now(), type: e.tone || '', text: e.text, tag: e.tag || '', key });
+      added++;
+    }
+    if (added){ save(); renderEntries(); }
+  }catch(e){}
+}
+
+/* ---------------- boot ---------------- */
+load();
+renderEntries();
+ctx.fillStyle = '#efe6d2'; ctx.fillRect(0, 0, W, H);
+$('mstrokes').textContent = strokes;
+if (strokes) $('caption').textContent = `${strokes} strokes earned so far`;
+
+(async () => {
+  await refresh();
+  await refreshEvents();
+  // repaint from stored strokes so returning visitors see their own painting
+  if (strokes) paintTo(strokes);
+  pollTimer = setInterval(refresh, 15000);
+  setInterval(refreshEvents, 60000);
+})();
+</script>
+</body>
+</html>
