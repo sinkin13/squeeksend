@@ -109,12 +109,12 @@
   <header>
     <div class="brand"><i></i>SQUEEKCHAIN · SEPOLIA · LIVE</div>
     <h1>Squeek<span>Scope</span></h1>
-    <p class="tag">The blockchain is a hamster wheel. Every <b>block</b> is one turn. This page watches the wheel spin — live, right now, with nothing faked.</p>
+    <p class="tag">Squeekchain is powered by <b>one real hamster</b>. Every block started with a turn of her wheel. This page watches those turns land — live, with nothing faked.</p>
 
     <div class="explain">
       <div class="ex"><span class="en">1</span><b>What's a block?</b> A box of transactions sealed every ~12 seconds. The wheel turns once = one new box.</div>
-      <div class="ex"><span class="en">2</span><b>Why the wheel?</b> Squeekchain calls its chain "hamster-powered". We took that literally.</div>
-      <div class="ex"><span class="en">3</span><b>Is this real?</b> Yes. It reads Ethereum Sepolia directly. No mock data, no backend.</div>
+      <div class="ex"><span class="en">2</span><b>Who turns it?</b> Squeektoshi — a real hamster on a real wheel. One accepted pass, one work unit.</div>
+      <div class="ex"><span class="en">3</span><b>Is this real?</b> The data is. It reads Ethereum Sepolia directly — no mock, no backend.</div>
     </div>
   </header>
 
@@ -122,13 +122,13 @@
     <div class="wheel">
       <div class="rim"></div>
       <div class="spokes" id="spokes"></div>
-      <div class="hub" id="hub">🐹</div>
-      <div class="blknum" id="blknum">—</div>
+      <div class="hub" id="hub" title="Squeektoshi">🐹</div>
+      <div class="blknum" id="blknum">squeektoshi is warming up</div>
     </div>
 
     <div class="stats">
-      <div class="stat a"><div class="k">SECONDS PER BLOCK</div><div class="v" id="speed">—<span class="u">s</span></div></div>
-      <div class="stat b"><div class="k">BLOCKS WATCHED</div><div class="v" id="turns">0</div></div>
+      <div class="stat a"><div class="k">SQUEEKТОSHI'S PACE</div><div class="v" id="speed">—<span class="u">s</span></div></div>
+      <div class="stat b"><div class="k">WHEEL TURNS WATCHED</div><div class="v" id="turns">0</div></div>
       <div class="stat c"><div class="k">COST PER TX</div><div class="v" id="gas">—<span class="u">gwei</span></div></div>
       <div class="stat d"><div class="k">NETWORK</div><div class="v" id="net" style="font-size:15px">Sepolia</div></div>
       <div class="stat" style="grid-column:1/-1;border-color:#3a2d5e"><div class="k">LAST 100 BLOCKS</div>
@@ -136,7 +136,7 @@
     </div>
   </div>
 
-  <p class="quote">"The hamster does not know what it is proving. <b>The wheel does.</b>"</p>
+  <p class="quote">"Squeektoshi sets the pace. <b>We just write it down.</b>"</p>
 
   <section>
     <div class="sechead">
@@ -301,7 +301,7 @@ async function turn(){
     }
     lastTs = ts; lastBlock = n; turns++;
 
-    $('blknum').textContent = 'BLOCK #' + fmt(n);
+    $('blknum').textContent = 'TURN #' + fmt(n);
     $('turns').textContent = fmt(turns);
     $('hub').classList.add('turn');
     setTimeout(() => $('hub').classList.remove('turn'), 200);
@@ -346,9 +346,9 @@ async function init(){
     blocks.slice(0, 14).forEach((b, i) => addRow(b, false));
     if (blocks[0]){
       const n = hexToNum(blocks[0].number);
-      $('blknum').textContent = 'BLOCK #' + fmt(n);
+      $('blknum').textContent = 'TURN #' + fmt(n);
       $('dot').className = 'dot';
-      $('stat').textContent = 'synced · block #' + fmt(n);
+      $('stat').textContent = 'watching squeektoshi · turn #' + fmt(n);
     }
   }catch(e){
     $('dot').className = 'dot warn';
