@@ -117,6 +117,8 @@
       <div class="stat b"><div class="k">TURNS SEEN</div><div class="v" id="turns">0</div></div>
       <div class="stat c"><div class="k">GAS PRICE</div><div class="v" id="gas">—<span class="u">gwei</span></div></div>
       <div class="stat d"><div class="k">NETWORK</div><div class="v" id="net" style="font-size:15px">Sepolia</div></div>
+      <div class="stat" style="grid-column:1/-1;border-color:#3a2d5e"><div class="k">LAST 100 TURNS</div>
+        <div class="v" id="hundred" style="font-size:16px">—</div></div>
     </div>
   </div>
 
@@ -143,6 +145,17 @@
     <div class="almanac">
       <div class="arow hd"><span>BLOCK</span><span>HASH</span><span>TXS</span><span>GAS USED</span><span>TIME</span></div>
       <div id="rows"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <h2>INSIDE THE LAST TURN</h2>
+      <span class="hint" id="lastblk">—</span>
+    </div>
+    <div class="almanac" id="txbox">
+      <div class="arow hd"><span>#</span><span>TX HASH</span><span colspan="2">FROM</span><span></span></div>
+      <div id="txrows"><div class="arow"><span class="hs">waiting for the next turn…</span></div></div>
     </div>
   </section>
 
@@ -225,6 +238,20 @@ function paintHeat(blocks){
   }
 }
 
+function paintTxs(block){
+  const box = $('txrows');
+  const list = (block.transactions || []).slice(0, 5);
+  $('lastblk').textContent = '#' + fmt(hexToNum(block.number)) + ' · ' + block.transactions.length + ' tx';
+  if (!list.length){
+    box.innerHTML = '<div class="arow"><span class="hs">a quiet turn — no transactions</span></div>';
+    return;
+  }
+  box.innerHTML = list.map((h,i) =>
+    `<div class="arow"><span class="num">${i+1}</span><span class="hs">${shortHash(h)}</span>` +
+    `<span class="tx" style="grid-column:3/5;font-size:11px">${h.slice(0,26)}…</span><span></span></div>`
+  ).join('');
+}
+
 function addRow(block, fresh){
   const row = document.createElement('div');
   row.className = 'arow' + (fresh ? ' fresh' : '');
@@ -248,7 +275,7 @@ async function turn(){
     const b = await rpc('eth_getBlockByNumber', ['latest', false]);
     if (!b) return;
     const n = hexToNum(b.number);
-    if (n === lastBlock) { $('dot').className = 'dot'; $('stat').textContent = 'wheel idle · watching block #' + n; return; }
+    if (n === lastBlock) { $('dot').className = 'dot'; $('stat').textContent = 'holding · block #' + fmt(n) + ' · ' + b.transactions.length + ' tx in it'; return; }
 
     const ts = hexToNum(b.timestamp);
     if (lastTs) {
@@ -268,10 +295,17 @@ async function turn(){
     // gas price live
     try{
       const gp = await rpc('eth_gasPrice', []);
-      $('gas').innerHTML = (hexToNum(gp) / 1e9).toFixed(2) + '<span class="u">gwei</span>';
+      const gv = hexToNum(gp) / 1e9;
+      $('gas').innerHTML = (gv < 0.01 ? gv.toFixed(4) : gv.toFixed(2)) + '<span class="u">gwei</span>';
     }catch(_){}
 
     addRow(b, true);
+    paintTxs(b);
+    const txs100 = seen.reduce((a,x)=>a + (x ? x.transactions.length : 0), 0);
+    const avg = seen.length > 1 && seen[0] && seen[seen.length-1]
+      ? ((hexToNum(seen[0].timestamp) - hexToNum(seen[seen.length-1].timestamp)) / (seen.length-1)).toFixed(1)
+      : '—';
+    $('hundred').innerHTML = (avg === '—' ? '—' : avg + 's avg · ') + fmt(txs100) + ' tx';
     seen.unshift(b);
     if (seen.length > 100) seen.pop();
     paintHeat(seen);
