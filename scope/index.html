@@ -560,6 +560,16 @@ async function init(){
   setInterval(drawGas, 600000);
 }
 
+// --- search wiring (safe: elements may render later) ---
+function wireSearch(){
+  const g = document.getElementById('go');
+  const q = document.getElementById('q');
+  if (g && !g.dataset.wired){ g.dataset.wired = '1'; g.addEventListener('click', lookup); }
+  if (q && !q.dataset.wired){ q.dataset.wired = '1'; q.addEventListener('keydown', e => { if (e.key === 'Enter') lookup(); }); }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireSearch);
+else wireSearch();
+
 init();
 </script>
 </body>
