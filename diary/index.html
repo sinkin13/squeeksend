@@ -133,6 +133,10 @@
       <span class="dcount" id="dcount">—</span>
     </div>
     <div id="entries"><div class="empty">waiting for the first entry…</div></div>
+    <div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap">
+      <button id="share" style="font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:#221a38;color:var(--text);padding:10px 15px">𝕏 Share today's entry</button>
+      <button id="random" style="font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--dim);padding:10px 15px">↻ Re-read the last entry</button>
+    </div>
   </div>
 
   <footer>
@@ -432,6 +436,25 @@ async function refreshEvents(){
     if (added){ save(); renderEntries(); }
   }catch(e){}
 }
+
+function plain(html){ const d = document.createElement('div'); d.innerHTML = html; return d.textContent; }
+
+document.addEventListener('click', ev => {
+  const t = ev.target;
+  if (!t || !t.id) return;
+  if (t.id === 'share'){
+    const e = entries[0];
+    if (!e) return;
+    const txt = plain(e.text).slice(0, 200);
+    const url = 'https://neikuu.bond/diary/';
+    window.open('https://x.com/intent/tweet?text=' + encodeURIComponent(txt + '\n\n— from Squeektoshi’s Diary') + '&url=' + encodeURIComponent(url), '_blank');
+  }
+  if (t.id === 'random'){
+    const e = entries[Math.floor(Math.random() * Math.min(entries.length, 20))];
+    if (!e) return;
+    entries.unshift(e); renderEntries();
+  }
+});
 
 /* ---------------- boot ---------------- */
 load();
