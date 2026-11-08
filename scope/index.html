@@ -101,6 +101,20 @@
             background:#100c1c;border:1px solid var(--line);border-radius:12px;padding:11px 16px;font-size:12.5px}
   .roundbar b{color:var(--gold);font-variant-numeric:tabular-nums}
   .roundbar .sep{color:#3a2d5e}
+  .search{display:flex;gap:8px;margin-top:26px}
+  .search input{flex:1;font:inherit;font-size:13.5px;padding:12px 14px;border-radius:11px;
+    border:1px solid var(--line);background:#0f0b1c;color:var(--ink);font-family:var(--mono)}
+  .search input:focus{outline:none;border-color:var(--mint2)}
+  .search button{width:auto;padding:12px 18px;background:#221a38;border:1px solid var(--line);
+    border-radius:11px;color:var(--ink);font-weight:600}
+  .search button:hover{border-color:var(--mint2)}
+  .found{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px}
+  .found .fr{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:12.5px;
+    border-bottom:1px solid #ffffff07}
+  .found .fr:last-child{border-bottom:none}
+  .found .fk{color:var(--dim)} .found .fv{font-family:var(--mono);color:var(--ink);word-break:break-all;text-align:right}
+  .chart{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .chart svg{width:100%;height:110px;display:block}
   .status{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--dim);margin-top:22px;justify-content:center}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--mint2);box-shadow:0 0 9px var(--mint2)}
   .dot.warn{background:var(--gold);box-shadow:0 0 9px var(--gold)}
@@ -126,6 +140,12 @@
       <div class="ex"><span class="en">3</span><b>Is this real?</b> The data is. It reads Ethereum Sepolia directly — no mock, no backend.</div>
     </div>
   </header>
+
+  <div class="search">
+    <input id="q" placeholder="look up a block number, tx hash or address…" spellcheck="false" autocomplete="off">
+    <button id="go">Look up</button>
+  </div>
+  <div class="found hide" id="found"></div>
 
   <div class="wheelbox">
     <div class="wheel">
@@ -186,6 +206,14 @@
       <div class="arow hd"><span>#</span><span>TX HASH</span><span colspan="2">FROM</span><span></span></div>
       <div id="txrows"><div class="arow"><span class="hs">waiting for the next turn…</span></div></div>
     </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <h2>COST PER TX · LAST 24 HOURS</h2>
+      <span class="hint">gas price sampled hourly · lower = cheaper to transact</span>
+    </div>
+    <div class="chart"><svg id="gaschart" viewBox="0 0 600 110" preserveAspectRatio="none"></svg></div>
   </section>
 
   <section>
@@ -274,6 +302,76 @@ function paintHeat(blocks){
     heat[i].style.background = b ? heatColor(hexToNum(b.gasUsed), b.transactions.length) : '#1a1430';
     if (b) heat[i].title = '#' + hexToNum(b.number) + ' · ' + b.transactions.length + ' tx · ' + fmt(hexToNum(b.gasUsed)) + ' gas';
   }
+}
+
+async function lookup(){
+  const v = ($('q').value || '').trim();
+  const box = $('found');
+  if (!v) return;
+  box.classList.remove('hide');
+  box.innerHTML = '<div class="fr"><span class="fk">looking up…</span></div>';
+  try{
+    if (/^\d+$/.test(v) || /^#\d+$/.test(v)){
+      const n = v.replace('#','');
+      const b = await rpc('eth_getBlockByNumber', ['0x' + BigInt(n).toString(16), false]);
+      if (!b) throw new Error('block not found');
+      box.innerHTML = rowHTML('Block', '#' + fmt(hexToNum(b.number))) +
+        rowHTML('Hash', shortHash(b.hash)) +
+        rowHTML('Transactions', b.transactions.length) +
+        rowHTML('Gas used', fmt(hexToNum(b.gasUsed))) +
+        rowHTML('Mined', new Date(hexToNum(b.timestamp)*1000).toUTCString().slice(17,25) + ' UTC');
+    } else if (/^0x[0-9a-fA-F]{64}$/.test(v)){
+      const t = await rpc('eth_getTransactionByHash', [v]);
+      if (!t) throw new Error('tx not found');
+      const r = await rpc('eth_getTransactionReceipt', [v]);
+      box.innerHTML = rowHTML('Transaction', shortHash(t.hash)) +
+        rowHTML('Status', r && r.status === '0x1' ? 'success ✓' : 'pending / failed') +
+        rowHTML('From', shortAddr(t.from)) + rowHTML('To', t.to ? shortAddr(t.to) : 'contract creation') +
+        rowHTML('Value', (Number(BigInt(t.value)) / 1e18).toFixed(6) + ' ETH') +
+        rowHTML('Block', r ? '#' + fmt(hexToNum(r.blockNumber)) : 'pending');
+    } else if (/^0x[0-9a-fA-F]{40}$/.test(v)){
+      const wei = await rpc('eth_getBalance', [v, 'latest']);
+      const nonce = await rpc('eth_getTransactionCount', [v, 'latest']);
+      box.innerHTML = rowHTML('Address', shortAddr(v)) +
+        rowHTML('Balance', (Number(BigInt(wei)) / 1e18).toFixed(6) + ' ETH') +
+        rowHTML('Transactions sent', fmt(hexToNum(nonce)));
+    } else {
+      throw new Error('enter a block number, 0x… tx hash (66 chars) or 0x… address (42 chars)');
+    }
+  }catch(e){
+    box.innerHTML = '<div class="fr"><span class="fk">' + (e.message || 'lookup failed') + '</span></div>';
+  }
+}
+
+function rowHTML(k, v){
+  return '<div class="fr"><span class="fk">' + k + '</span><span class="fv">' + v + '</span></div>';
+}
+function shortAddr(a){ return a ? a.slice(0,10) + '…' + a.slice(-8) : '—'; }
+
+async function drawGas(){
+  try{
+    const latest = seen[0] || await rpc('eth_getBlockByNumber', ['latest', false]);
+    const latestN = hexToNum(latest.number);
+    const perHour = 300;
+    const jobs = [];
+    for (let h = 0; h < 24; h++){
+      const n = latestN - h * perHour;
+      if (n > 0) jobs.push(rpc('eth_getBlockByNumber', ['0x' + n.toString(16), false]));
+    }
+    const blocks = (await Promise.all(jobs)).filter(Boolean).reverse();
+    // baseFeePerGas as the honest cost signal
+    const vals = blocks.map(b => b.baseFeePerGas ? hexToNum(b.baseFeePerGas) / 1e9 : 0);
+    if (!vals.length) return;
+    const mx = Math.max(...vals, 0.0001), mn = Math.min(...vals);
+    const pts = vals.map((v,i) => {
+      const x = (i / (vals.length-1 || 1)) * 600;
+      const y = 105 - ((v - mn) / (mx - mn || 1)) * 92;
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    });
+    $('gaschart').innerHTML =
+      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#96fce4" stroke-width="2" stroke-linejoin="round"/>' +
+      '<polyline points="0,110 ' + pts.join(' ') + ' 600,110" fill="#96fce433" stroke="none"/>';
+  }catch(e){}
 }
 
 async function loadDay(){
@@ -456,8 +554,10 @@ async function init(){
   }
   await turn();
   loadDay();
+  drawGas();
   setInterval(turn, 4000);
   setInterval(loadDay, 600000);
+  setInterval(drawGas, 600000);
 }
 
 init();
