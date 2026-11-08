@@ -78,8 +78,6 @@
   .etext em{color:var(--mint);font-style:italic}
   .etag{display:inline-block;margin-top:7px;font-size:9.5px;letter-spacing:.14em;color:var(--dim);
         border:1px solid var(--line);border-radius:999px;padding:3px 9px}
-  .new{animation:slide .5s}
-  @keyframes slide{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
 
   .empty{color:var(--dim);font-size:13px;padding:20px 0;line-height:1.7}
   .pillnote{display:inline-block;margin-top:18px;font-size:11.5px;color:var(--dim);
@@ -109,7 +107,7 @@
   <div class="stage">
     <div>
       <div class="frame">
-        <canvas id="art" width="600" height="600"></canvas>
+        <canvas id="art" width="440" height="440"></canvas>
         <div class="caption" id="caption">day one — nothing painted yet</div>
       </div>
     </div>
@@ -157,11 +155,11 @@
    ===================================================================== */
 const API = 'https://api.squeekchain.com';
 const STORE = 'squeektoshi_diary_v2';
-const STROKE_EVERY = 1000;          // work units per brushstroke
+const STROKE_EVERY = 1500;          // work units per brushstroke
 
 const $ = id => document.getElementById(id);
 const cv = $('art'), ctx = cv.getContext('2d');
-const W = 600, H = 600;
+const W = 440, H = 440;
 
 let state = null;
 let entries = [];       // {ts, type, text, tag, tone}
@@ -347,10 +345,10 @@ function renderEntries(){
     $('dcount').textContent = '—';
     return;
   }
-  box.innerHTML = entries.slice(0, 25).map((e, i) => {
+  box.innerHTML = entries.slice(0, 14).map((e, i) => {
     const d = new Date(e.ts);
     const ds = d.toISOString().slice(0, 16).replace('T', ' ');
-    return `<div class="entry ${e.type || ''}${i === 0 ? ' new' : ''}">
+    return `<div class="entry ${e.type || ''}">
       <div class="edate">${ds} UTC</div>
       <div class="etext">${e.text}</div>
       ${e.tag ? `<span class="etag">${e.tag}</span>` : ''}
@@ -477,8 +475,8 @@ if (strokes) $('caption').textContent = `${strokes} strokes earned so far`;
   await refreshEvents();
   // repaint from stored strokes so returning visitors see their own painting
   if (strokes) paintTo(strokes);
-  pollTimer = setInterval(refresh, 30000);
-  setInterval(refreshEvents, 90000);
+  pollTimer = setInterval(refresh, 60000);
+  setInterval(refreshEvents, 300000);
 })();
 </script>
 </body>
