@@ -15,9 +15,7 @@
   }
   *{box-sizing:border-box;margin:0}
   body{
-    background:
-      radial-gradient(1200px 560px at 50% -14%,#2b1d4d 0%,transparent 60%),
-      var(--bg);
+    background:linear-gradient(180deg,#150e26 0%,var(--bg) 420px),var(--bg);
     color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
     min-height:100vh;padding:0 0 70px;
   }
@@ -51,8 +49,9 @@
   .stage{display:grid;grid-template-columns:1.05fr .95fr;gap:20px;margin-top:30px;align-items:start}
   @media(max-width:760px){.stage{grid-template-columns:1fr}}
   .frame{background:var(--paper);border-radius:6px;padding:11px 11px 34px;
-         box-shadow:0 24px 60px #000b,0 0 0 1px #00000033 inset;transform:rotate(-1.1deg)}
-  canvas{width:100%;height:auto;display:block;border-radius:2px;background:#efe6d2}
+         box-shadow:0 10px 28px #0009}
+  canvas{width:100%;height:auto;display:block;border-radius:2px;background:#efe6d2;
+         contain:layout paint}
   .caption{font-family:var(--serif);font-size:11.5px;color:#6d6152;text-align:center;
            margin-top:9px;font-style:italic;letter-spacing:.02em}
   .meta{font-size:12px;color:var(--dim);line-height:1.75;margin-top:6px}
@@ -66,7 +65,8 @@
   .dhead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;gap:10px;flex-wrap:wrap}
   h2{font-family:var(--serif);font-size:20px;font-weight:600;letter-spacing:-.2px}
   .dcount{font-size:11.5px;color:var(--dim)}
-  .entry{position:relative;padding:0 0 24px 30px;border-left:1px solid var(--line);margin-left:6px}
+  .entry{position:relative;padding:0 0 24px 30px;border-left:1px solid var(--line);margin-left:6px;
+         content-visibility:auto;contain-intrinsic-size:auto 110px}
   .entry:last-child{border-left-color:transparent}
   .entry::before{content:'';position:absolute;left:-4.5px;top:5px;width:8px;height:8px;
                  border-radius:50%;background:var(--mint2);box-shadow:0 0 10px var(--mint2)}
@@ -335,7 +335,7 @@ function addEntry(e){
   const ts = Date.now();
   if (entries.length && entries[0].text === e.text && ts - entries[0].ts < 300000) return false;
   entries.unshift({ ts, type: e.tone || '', text: e.text, tag: e.tag || '' });
-  if (entries.length > 120) entries.pop();
+  if (entries.length > 60) entries.pop();
   save();
   return true;
 }
@@ -347,7 +347,7 @@ function renderEntries(){
     $('dcount').textContent = '—';
     return;
   }
-  box.innerHTML = entries.slice(0, 40).map((e, i) => {
+  box.innerHTML = entries.slice(0, 25).map((e, i) => {
     const d = new Date(e.ts);
     const ds = d.toISOString().slice(0, 16).replace('T', ' ');
     return `<div class="entry ${e.type || ''}${i === 0 ? ' new' : ''}">
@@ -399,7 +399,13 @@ async function refresh(){
     if (target > strokes){
       const from = strokes;
       strokes = target;
-      for (let i = from; i < strokes; i++) paintStroke(i, 7);
+      let i = from;
+      const batch = () => {
+        const end = Math.min(i + 6, strokes);
+        for (; i < end; i++) paintStroke(i, 7);
+        if (i < strokes) requestAnimationFrame(batch);
+      };
+      batch();
       $('mstrokes').textContent = strokes;
       $('caption').textContent = `day ${Math.ceil(strokes / 8)} — ${strokes} strokes, ${fmt(work)} turns`;
       save();
@@ -471,8 +477,8 @@ if (strokes) $('caption').textContent = `${strokes} strokes earned so far`;
   await refreshEvents();
   // repaint from stored strokes so returning visitors see their own painting
   if (strokes) paintTo(strokes);
-  pollTimer = setInterval(refresh, 15000);
-  setInterval(refreshEvents, 60000);
+  pollTimer = setInterval(refresh, 30000);
+  setInterval(refreshEvents, 90000);
 })();
 </script>
 </body>
