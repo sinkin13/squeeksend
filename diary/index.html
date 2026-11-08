@@ -171,6 +171,9 @@ function load(){
     const s = JSON.parse(localStorage.getItem(STORE) || 'null');
     if (s && Array.isArray(s.entries)){ entries = s.entries; strokes = s.strokes || 0; }
   }catch(e){}
+  // buang duplikat (text sama persis) — simpan yang paling baru
+  const seen = new Set();
+  entries = entries.filter(e => { const k = e.key || e.text; if (seen.has(k)) return false; seen.add(k); return true; });
 }
 function save(){
   try{
@@ -334,7 +337,7 @@ function runEntry(st){
 
 function addEntry(e){
   const ts = Date.now();
-  if (entries.length && entries[0].text === e.text && ts - entries[0].ts < 60000) return false;
+  if (entries.length && entries[0].text === e.text && ts - entries[0].ts < 300000) return false;
   entries.unshift({ ts, type: e.tone || '', text: e.text, tag: e.tag || '' });
   if (entries.length > 120) entries.pop();
   save();
@@ -432,7 +435,7 @@ async function refreshEvents(){
       const e = entryFor(ev);
       if (!e) continue;
       // de-dup by tag+round
-      const key = (e.tag || '') + '|' + (ev.payload && (ev.payload.throughRound || ev.payload.tokenId) || '') + '|' + (ev.occurredAt || '').slice(0, 16);
+      const key = ev.id || ((e.tag || '') + '|' + (ev.occurredAt || ''));
       if (entries.some(x => x.key === key)) continue;
       entries.unshift({ ts: Date.parse(ev.occurredAt) || Date.now(), type: e.tone || '', text: e.text, tag: e.tag || '', key });
       added++;
