@@ -265,50 +265,39 @@ const fmt = n => Number(n).toLocaleString('en-US');
 function entryFor(ev){
   const t = ev.type || '';
   const p = ev.payload || {};
-  const when = (ev.occurredAt || '').slice(0, 16).replace('T', ' ');
+  const sqk = v => v ? (Number(BigInt(v) / BigInt(1e14)) / 10000).toLocaleString('en-US') : '?';
 
   if (t === 'system.mining_checkpointed'){
-    const work = p.cumulativeWork ? fmt(p.cumulativeWork) : '?';
-    const to = p.throughRound || '?';
-    return {
-      tone: 'gold',
-      tag: 'ROUND ' + to,
-      text: `Round ${to} closed. She has turned the wheel <em>${work}</em> times now, and every one of them is written on a chain she will never read.`
-    };
+    return { tone:'gold', tag:'ROUND ' + (p.throughRound || '?'),
+      text:`Round <em>${p.throughRound}</em> closed. She has turned the wheel <em>${fmt(p.cumulativeWork || 0)}</em> times now, and every one of them is written on a chain she will never read.` };
   }
   if (t === 'system.settlement_completed'){
-    return {
-      tone: 'gold',
-      tag: 'SETTLED',
-      text: `A settlement landed. Somewhere a machine did the arithmetic and agreed with her. She has no idea, and that is the whole point.`
-    };
+    return { tone:'gold', tag:'SETTLED',
+      text:`A settlement landed at block <em>${fmt(p.blockHeight || 0)}</em>. Somewhere a machine did the arithmetic and agreed with her.` };
   }
   if (t === 'account.rewards_staked'){
-    return {
-      tone: '', tag: 'STAKED',
-      text: `Someone staked their faith in her again. They have never met her. She has never met anyone.`
-    };
+    return { tone:'', tag:'STAKED ' + sqk(p.amountBaseUnits) + ' SQK',
+      text:`<em>${sqk(p.amountBaseUnits)} SQK</em> of rewards went back into the ground — earned by turns she does not remember taking.` };
   }
   if (t === 'account.rewards_claimed'){
-    return {
-      tone: '', tag: 'CLAIMED',
-      text: `A reward was claimed — earned by turns she does not remember taking.`
-    };
+    return { tone:'', tag:'CLAIMED ' + sqk(p.amountBaseUnits) + ' SQK',
+      text:`Someone walked away with <em>${sqk(p.amountBaseUnits)} SQK</em>. None of it would exist if she had stayed in bed.` };
   }
   if (t === 'account.sqk_staked'){
-    return {
-      tone: 'violet', tag: 'SQK',
-      text: `More SQK went into the ground, the way seeds do. All of it rooted in one small animal's afternoon.`
-    };
+    return { tone:'violet', tag:'SQK ' + sqk(p.amountBaseUnits),
+      text:`<em>${sqk(p.amountBaseUnits)} SQK</em> locked, the way seeds are buried. All of it rooted in one small animal's afternoon.` };
   }
   if (t === 'nft.merged'){
-    return { tone: 'violet', tag: 'MERGED', text: `Two Squeeks became one. She kept running through it.` };
+    return { tone:'violet', tag:'MERGE #' + (p.tokenId || '?'),
+      text:`Squeeks <em>#${p.tokenId || '?'}</em> was merged into another. She kept running straight through it.` };
   }
   if (t === 'nft.deposited'){
-    return { tone: 'violet', tag: 'DEPOSIT', text: `A Squeeks came home to the wheel. It will earn its keep the same way she does: quietly, in circles.` };
+    return { tone:'violet', tag:'SQUEEKS #' + (p.tokenId || '?'),
+      text:`Squeeks <em>#${p.tokenId || '?'}</em> (power ${fmt(p.basePower || 0)}) came home to the wheel. It will earn its keep the way she does: quietly, in circles.` };
   }
   if (t === 'nft.withdrawn'){
-    return { tone: 'quiet', tag: 'WITHDRAWN', text: `A Squeeks left the wheel behind. The chain did not notice. She did not either.` };
+    return { tone:'quiet', tag:'OUT #' + (p.tokenId || '?'),
+      text:`Squeeks <em>#${p.tokenId || '?'}</em> left the wheel behind. The chain did not notice. She did not either.` };
   }
   return null;
 }
