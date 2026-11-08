@@ -276,6 +276,44 @@ function paintHeat(blocks){
   }
 }
 
+async function loadDay(){
+  // sample one block per hour over the last 24h → honest sleep schedule
+  try{
+    const latest = seen[0] || await rpc('eth_getBlockByNumber', ['latest', false]);
+    const latestN = hexToNum(latest.number);
+    const perHour = 300;                       // ~12s blocks → 300 ≈ 1 hour
+    const jobs = [];
+    for (let h = 0; h < 24; h++){
+      const n = latestN - h * perHour;
+      if (n > 0) jobs.push(rpc('eth_getBlockByNumber', ['0x' + n.toString(16), false]));
+    }
+    const sample = (await Promise.all(jobs)).filter(Boolean);
+    const sum = Array(24).fill(0), cnt = Array(24).fill(0);
+    sample.forEach(b => {
+      const hr = new Date(hexToNum(b.timestamp) * 1000).getUTCHours();
+      sum[hr] += b.transactions.length; cnt[hr]++;
+    });
+    const avg = sum.map((v,i) => cnt[i] ? v / cnt[i] : 0);
+    const mx = Math.max(...avg, 1);
+    const box = $('hours');
+    [...box.children].forEach((el,i) => {
+      const v = avg[i];
+      if (!cnt[i]) { el.style.background = '#161027'; el.title = 'hour ' + String(i).padStart(2,'0') + ':00 UTC · no sample'; return; }
+      const r = v / mx;
+      el.style.background = r < .2 ? '#233452' : r < .45 ? '#2a6f78' : r < .7 ? '#3fc9a6' : r < .9 ? '#96fce4' : '#ffd78a';
+      el.title = 'hour ' + String(i).padStart(2,'0') + ':00 UTC · ' + Math.round(v) + ' tx per block';
+    });
+    const busiest = avg.indexOf(Math.max(...avg));
+    const quietest = avg.reduce((best,v,i)=> (cnt[i] && v < avg[best] ? i : best), 0);
+    $('hourslbl').title = 'busiest ' + String(busiest).padStart(2,'0') + ':00 · quietest ' + String(quietest).padStart(2,'0') + ':00 UTC';
+    const el = document.createElement('div');
+    el.style.cssText = 'margin-top:10px;font-size:11.5px;color:#9c8fc4;text-align:center';
+    el.textContent = 'busiest hour: ' + String(busiest).padStart(2,'0') + ':00 UTC · quietest: ' + String(quietest).padStart(2,'0') + ':00 UTC';
+    if (!$('hoursum')){ el.id='hoursum'; $('hours').after(el); }
+    else { $('hoursum').textContent = el.textContent; }
+  }catch(e){}
+}
+
 function paintHours(blocks){
   const box = $('hours');
   if(!box.children.length){
@@ -417,7 +455,9 @@ async function init(){
     $('stat').textContent = 'seeding history failed — going live anyway';
   }
   await turn();
+  loadDay();
   setInterval(turn, 4000);
+  setInterval(loadDay, 600000);
 }
 
 init();
