@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="squeekchain-project" content="ef49d289-7dae-4374-87b2-ac6188a2159d">
-<title>SqueekSend — HYPE transfers on Squeekchain</title>
-<meta name="description" content="A tiny, honest HYPE transfer tool for Squeekchain. Connect, check your balance, send with a memo. No backend, no tracking.">
+<title>SqueekSend — ETH transfers on Squeekchain</title>
+<meta name="description" content="A tiny, honest ETH transfer tool for Squeekchain. Connect, check your balance, send with a memo. No backend, no tracking.">
 <style>
   :root{
     --bg:#0d0a18; --card:#171129; --line:#2c2447; --ink:#efeaff; --dim:#a397c9;
@@ -54,7 +54,7 @@
 <body>
   <div class="ham">🐹</div>
   <h1>Squeek<span>Send</span></h1>
-  <p class="tag">A tiny, honest HYPE transfer tool for Squeekchain. Connect a wallet, check what's in it, send with a memo. No backend, no tracking, no sign-up.</p>
+  <p class="tag">A tiny, honest ETH transfer tool for Squeekchain. Connect a wallet, check what's in it, send with a memo. No backend, no tracking, no sign-up.</p>
   <div class="net">SQUEEKCHAIN · ETHEREUM SEPOLIA · 11155111</div>
 
   <div class="card">
@@ -78,12 +78,10 @@
     <div id="sendbox" class="hide">
       <label for="to">Recipient address</label>
       <input id="to" class="mono" placeholder="0x…" spellcheck="false" autocomplete="off">
-      <label for="amt">Amount (HYPE)</label>
+      <label for="amt">Amount (ETH)</label>
       <input id="amt" placeholder="0.0" inputmode="decimal" autocomplete="off">
-      <label for="memo">Memo (optional, off-chain note)</label>
-      <input id="memo" placeholder="gm hamster" maxlength="64">
       <div style="margin-top:16px">
-        <button class="primary" id="send">Send HYPE</button>
+        <button class="primary" id="send">Send ETH</button>
       </div>
     </div>
 
@@ -123,7 +121,7 @@ async function refresh(){
   try{
     const wei = await eth('eth_getBalance', [acct, 'latest']);
     const hype = Number(BigInt(wei)) / 1e18;
-    $('bal').textContent = hype.toFixed(6) + ' HYPE';
+    $('bal').textContent = hype.toFixed(6) + ' ETH';
     $('bal').className = 'v ' + (hype > 0 ? 'ok' : 'bad');
   }catch(e){
     $('bal').textContent = 'read failed';
@@ -151,7 +149,7 @@ async function connect(){
           await eth('wallet_addEthereumChain', [{
             chainId: CHAIN_HEX,
             chainName: 'Sepolia',
-            nativeCurrency: { name: 'HYPE', symbol: 'HYPE', decimals: 18 },
+            nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
             rpcUrls: [RPC_HINT]
           }]);
         }
