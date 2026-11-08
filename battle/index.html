@@ -144,9 +144,9 @@ const NAMES = ['Toshi','Mochi','Nugget','Pixel','Crumbs','Biscuit','Peanut','Zip
                'Sprout','Cheeks','Dumpling','Yuzu'];
 const WEAPONS = [
   { id:'paw',  name:'Paws',   dmg:4,  range:26,  cd:34, icon:'👊' },
-  { id:'axe',  name:'Axe',    dmg:16, range:34,  cd:54, icon:'🪓' },
-  { id:'bow',  name:'Bow',    dmg:11, range:170, cd:66, icon:'🏹' },
-  { id:'bomb', name:'Bomb',   dmg:26, range:120, cd:110, icon:'💣' }
+  { id:'axe',  name:'Axe',    dmg:13, range:34,  cd:64, icon:'🪓' },
+  { id:'bow',  name:'Bow',    dmg:9,  range:170, cd:80, icon:'🏹' },
+  { id:'bomb', name:'Bomb',   dmg:20, range:120, cd:130, icon:'💣' }
 ];
 
 /* ---------- seeded RNG (mulberry32) ---------- */
@@ -163,7 +163,7 @@ function makeRng(seed){
 /* ---------- state ---------- */
 let seed = 1001, rng = Math.random;
 let units = [], pickups = [], particles = [], feedLines = [];
-let tick = 0, stormR = 560, stormTick = 0, running = false, finished = false;
+let tick = 0, stormR = 690, stormTick = 0, running = false, finished = false;
 let winner = null, follow = -1, speedMul = 1, acc = 0, raf = null, lastTs = 0;
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
@@ -173,7 +173,7 @@ function reset(seedValue){
   seed = seedValue >>> 0;
   rng = makeRng(seed);
   units = []; pickups = []; particles = []; feedLines = [];
-  tick = 0; stormTick = 0; stormR = 560; winner = null; finished = false;
+  tick = 0; stormTick = 0; stormR = 690; winner = null; finished = false;
   follow = -1;
   $('alive').textContent = N;
   $('tick').textContent = '0';
@@ -184,14 +184,14 @@ function reset(seedValue){
 
   for (let i = 0; i < N; i++){
     const ang = rng() * Math.PI * 2;
-    const rad = 120 + rng() * 330;
+    const rad = 90 + rng() * 280;
     units.push({
       id: i,
       name: NAMES[i % NAMES.length] + (i >= NAMES.length ? i : ''),
       face: FACES[Math.floor(rng() * FACES.length)],
       x: W/2 + Math.cos(ang) * rad,
       y: H/2 + Math.sin(ang) * rad,
-      hp: 100, maxHp: 100,
+      hp: 130, maxHp: 130,
       weapon: WEAPONS[0],
       cd: Math.floor(rng() * 20),
       kills: 0,
@@ -219,8 +219,8 @@ function step(){
   tick++;
 
   // storm shrinks every 5s (300 ticks) after a 12s grace
-  if (tick > 720 && tick % 300 === 0 && stormR > 110){
-    stormR -= 62;
+  if (tick > 900 && tick % 420 === 0 && stormR > 110){
+    stormR -= 46;
     stormTick = tick;
   }
 
@@ -304,7 +304,7 @@ function step(){
 
     // storm damage
     if (inStorm){
-      u.hp -= 0.22;
+      u.hp -= 0.075;
       u.hurt = 4;
       if (u.hp <= 0){
         u.alive = false;
@@ -432,7 +432,7 @@ function draw(){
     ctx.arc(u.x, u.y, 17, 0, Math.PI*2);
     ctx.strokeStyle = '#1d1631'; ctx.lineWidth = 4; ctx.stroke();
     ctx.beginPath();
-    ctx.arc(u.x, u.y, 17, -Math.PI/2, -Math.PI/2 + Math.PI*2 * (u.hp/100));
+    ctx.arc(u.x, u.y, 17, -Math.PI/2, -Math.PI/2 + Math.PI*2 * (u.hp/130));
     ctx.strokeStyle = u.hp > 60 ? '#3fc9a6' : u.hp > 30 ? '#ffd78a' : '#ff8f85';
     ctx.lineWidth = 4; ctx.stroke();
 
