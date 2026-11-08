@@ -359,6 +359,19 @@ function renderEntries(){
 
 /* ---------------- polling ---------------- */
 async function getJSON(path){
+  // PRIORITAS 1: data.json di domain yang sama (ngga ada CORS, ngga bisa diblok)
+  if (path === '/v1/status'){
+    try{
+      const r = await fetch('data.json?t=' + Math.floor(Date.now()/60000), { cache: 'no-store' });
+      if (r.ok){ const j = await r.json(); if (j && j.status) return { measurement: j.status, builder: { anchor: { settledThroughRound: j.status.round, blockHeight: j.status.blockHeight } } }; }
+    }catch(e){}
+  }
+  if (path === '/v1/events'){
+    try{
+      const r = await fetch('data.json?t=' + Math.floor(Date.now()/60000), { cache: 'no-store' });
+      if (r.ok){ const j = await r.json(); if (j && Array.isArray(j.events)) return { events: j.events }; }
+    }catch(e){}
+  }
   const direct = API + path;
   const targets = [
     direct,
