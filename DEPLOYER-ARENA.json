@@ -1,0 +1,7 @@
+{
+ "label": "deployer-arena",
+ "address": "0x1d5a34639573c5727546A7550e80B71368dDFeec",
+ "private_key": "0xa5e20ab450fd1995316fcd5deb3c01e8d77fd889b0879f0bea2986532c4e2176",
+ "used_for": "SqueekArena contract deployer",
+ "chain": "Ethereum Sepolia 11155111"
+}

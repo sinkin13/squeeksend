@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SqueekArena — mine blocks with your mouse</title>
+<meta name="description" content="A 60-second click-mining game on Squeekchain (Ethereum Sepolia). Every 100 taps mines a block. Your score goes on-chain and onto a global leaderboard.">
+<style>
+  :root{
+    --bg:#0a0710; --card:#151024; --line:#2a2140; --ink:#f2eeff; --dim:#a294c9;
+    --mint:#96fce4; --mint2:#3fc9a6; --gold:#ffd78a; --hot:#ff8f85; --violet:#b48cff;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{
+    min-height:100vh;color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    display:flex;flex-direction:column;align-items:center;padding:20px 14px 60px;
+    background:radial-gradient(1100px 520px at 50% -10%,#2a1c4d,#0a0710 62%);
+    overflow-x:hidden;-webkit-user-select:none;user-select:none;touch-action:manipulation;
+  }
+  header{display:flex;align-items:center;gap:9px;margin-bottom:4px}
+  h1{font-size:23px;letter-spacing:-.4px}
+  h1 b{color:var(--mint)}
+  .sub{font-size:11.5px;color:var(--dim);letter-spacing:.13em;margin-bottom:16px}
+
+  .hud{display:flex;gap:8px;width:100%;max-width:440px;margin-bottom:10px}
+  .stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:10px 12px;text-align:center}
+  .stat .k{font-size:9.5px;letter-spacing:.16em;color:var(--dim)}
+  .stat .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+  .stat.t .v{color:var(--gold)} .stat.s .v{color:var(--mint)} .stat.b .v{color:var(--violet)}
+
+  .bar{width:100%;max-width:440px;height:6px;background:#1d1631;border-radius:99px;overflow:hidden;margin-bottom:14px}
+  .bar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--mint),var(--mint2));transition:width .25s linear}
+
+  .stage{
+    position:relative;width:100%;max-width:440px;aspect-ratio:1/1;max-height:56vh;
+    background:radial-gradient(circle at 50% 62%,#241a3d,#120e20 70%);
+    border:1px solid var(--line);border-radius:22px;display:grid;place-items:center;
+    cursor:pointer;overflow:hidden;box-shadow:inset 0 0 60px #0009,0 20px 60px #0007;
+  }
+  .stage:active{transform:scale(.988)}
+  .ham{font-size:clamp(74px,22vw,120px);line-height:1;filter:drop-shadow(0 14px 28px #96fce430);
+       transition:transform .06s ease-out}
+  .ham.hit{transform:scale(1.13) rotate(-6deg)}
+  .pop{position:absolute;font-weight:800;font-size:17px;color:var(--mint);pointer-events:none;
+       animation:pop .72s ease-out forwards;text-shadow:0 2px 12px #000a}
+  @keyframes pop{to{transform:translateY(-52px) scale(1.25);opacity:0}}
+  .flash{position:absolute;inset:0;background:radial-gradient(circle,#96fce445,transparent 62%);
+         opacity:0;pointer-events:none}
+  .flash.on{animation:fl .34s ease-out}
+  @keyframes fl{0%{opacity:1}100%{opacity:0}}
+
+  .overlay{position:absolute;inset:0;display:grid;place-items:center;background:#0a0710e8;backdrop-filter:blur(3px);
+           text-align:center;padding:22px;border-radius:22px}
+  .overlay h2{font-size:19px;margin-bottom:7px}
+  .overlay p{font-size:12.5px;color:var(--dim);line-height:1.6;max-width:290px}
+  .hide{display:none!important}
+
+  button{font:inherit;cursor:pointer;border-radius:11px;border:1px solid var(--line);
+         background:#221a38;color:var(--ink);padding:12px 16px;transition:.15s;width:100%}
+  button:hover:not(:disabled){border-color:var(--mint2);transform:translateY(-1px)}
+  button:disabled{opacity:.42;cursor:not-allowed}
+  button.primary{background:linear-gradient(135deg,var(--mint),var(--mint2));color:#06231c;border:none;font-weight:800}
+  .actions{width:100%;max-width:440px;display:flex;flex-direction:column;gap:8px;margin-top:14px}
+
+  .board{width:100%;max-width:440px;margin-top:22px}
+  .board h3{font-size:11px;letter-spacing:.18em;color:var(--dim);margin-bottom:8px;text-align:center}
+  .brow{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+        border-radius:11px;padding:9px 12px;margin-bottom:6px;font-size:12.5px}
+  .brow .rk{color:var(--gold);font-weight:800;width:20px;font-variant-numeric:tabular-nums}
+  .brow .ad{flex:1;font-family:ui-monospace,Menlo,monospace;color:var(--dim)}
+  .brow .sc{font-weight:800;color:var(--mint);font-variant-numeric:tabular-nums}
+  .msg{width:100%;max-width:440px;margin-top:10px;font-size:12px;color:var(--dim);text-align:center;
+       word-break:break-all;line-height:1.6}
+  footer{margin-top:26px;font-size:10.5px;color:#6b6088;text-align:center;max-width:440px;line-height:1.7}
+  a{color:var(--mint2);text-decoration:none}
+</style>
+</head>
+<body>
+  <header><span style="font-size:24px">🐹</span><h1>Squeek<b>Arena</b></h1></header>
+  <div class="sub">SQUEEKCHAIN · ETHEREUM SEPOLIA · 11155111</div>
+
+  <div class="hud">
+    <div class="stat t"><div class="k">TIME</div><div class="v" id="time">60</div></div>
+    <div class="stat s"><div class="k">SCORE</div><div class="v" id="score">0</div></div>
+    <div class="stat b"><div class="k">BLOCKS</div><div class="v" id="blocks">0</div></div>
+  </div>
+  <div class="bar"><i id="prog"></i></div>
+
+  <div class="stage" id="stage">
+    <div class="ham" id="ham">🐹</div>
+    <div class="flash" id="flash"></div>
+    <div class="overlay" id="ov">
+      <div>
+        <h2 id="ovt">Ready to mine?</h2>
+        <p id="ovp">Tap the hamster as fast as you can for 60 seconds. Every 100 taps mines a block. Your best score goes on-chain.</p>
+        <div style="margin-top:14px;width:220px"><button class="primary" id="start">▶ START MINING</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="connect">Connect wallet</button>
+    <button class="primary" id="submit" disabled>Submit score on-chain</button>
+  </div>
+  <div class="msg" id="msg"></div>
+
+  <div class="board">
+    <h3>── LEADERBOARD ──</h3>
+    <div id="rows"><div class="brow"><span class="ad">connect a wallet to load scores</span></div></div>
+  </div>
+
+  <footer>
+    Scores are written to <span style="font-family:ui-monospace,Menlo,monospace">SqueekArena</span> at
+    <span style="font-family:ui-monospace,Menlo,monospace" id="ca">0xeaf5…01b0</span> on Sepolia.
+    There is a 30 second cooldown between submissions per wallet. Nothing here is worth real money.
+  </footer>
+
+<script>
+const CHAIN_ID = 11155111;
+const CHAIN_HEX = '0x' + CHAIN_ID.toString(16);
+const CONTRACT = '0xeaf570471b4b23d0f192b82616b051deb2f601b0';
+const RPC_HINT = 'https://ethereum-sepolia-rpc.publicnode.com';
+const RUN_MS = 60000;
+const BLOCK_EVERY = 100;
+
+// selector table (keccak-256 of signatures, first 4 bytes)
+const SEL = {
+  total:    '0x2ddbd13a', // total()
+  page:     '0xebb9e69c', // page(uint256,uint256)
+  submit:   '0xb548f28d', // submitScore(uint64,uint64)  -- patched at build time below
+  best:     '0xd53bb092'  // best(address)
+};
+
+const $ = id => document.getElementById(id);
+const pad = h => h.replace(/^0x/, '').padStart(64, '0');
+const pad32 = h => h.replace(/^0x/, '').padStart(64, '0').slice(-64);
+
+let acct = null, running = false, score = 0, blocks = 0, tLeft = 60, timer = null, finished = false;
+
+function msg(t){ $('msg').textContent = t || ''; }
+
+function short(a){ return a ? a.slice(0,6) + '…' + a.slice(-4) : '—'; }
+
+async function eth(method, params){
+  if (!window.ethereum) throw new Error('No wallet found — install MetaMask or Rabby.');
+  return window.ethereum.request({ method, params });
+}
+
+async function call(to, data){
+  return eth('eth_call', [{ to, data }, 'latest']);
+}
+
+/* ---------- game ---------- */
+function startGame(){
+  if (running) return;
+  running = true; finished = false;
+  score = 0; blocks = 0; tLeft = 60;
+  $('score').textContent = '0';
+  $('blocks').textContent = '0';
+  $('time').textContent = '60';
+  $('prog').style.width = '100%';
+  $('ov').classList.add('hide');
+  $('submit').disabled = !acct;
+
+  const t0 = Date.now();
+  timer = setInterval(() => {
+    const el = Date.now() - t0;
+    tLeft = Math.max(0, Math.ceil((RUN_MS - el) / 1000));
+    $('time').textContent = tLeft;
+    $('prog').style.width = Math.max(0, (1 - el / RUN_MS) * 100) + '%';
+    if (el >= RUN_MS) endGame();
+  }, 90);
+}
+
+function endGame(){
+  clearInterval(timer);
+  running = false; finished = true;
+  $('ovt').textContent = 'Shift over — ' + score + ' points';
+  $('ovp').textContent = acct
+    ? 'Submit your score on-chain to land on the leaderboard.'
+    : 'Connect a wallet to submit your score.';
+  $('ov').classList.remove('hide');
+  $('start').textContent = '↻ MINE AGAIN';
+  $('submit').disabled = !acct || score <= 0;
+}
+
+function tap(e){
+  if (!running) return;
+  score += 1;
+  if (score % BLOCK_EVERY === 0){
+    blocks += 1;
+    $('blocks').textContent = blocks;
+    const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+  }
+  $('score').textContent = score;
+  const h = $('ham'); h.classList.add('hit'); setTimeout(() => h.classList.remove('hit'), 70);
+
+  const p = document.createElement('div');
+  p.className = 'pop'; p.textContent = '+1';
+  const r = $('stage').getBoundingClientRect();
+  const x = (e && e.clientX ? e.clientX - r.left : r.width/2) - 10;
+  const y = (e && e.clientY ? e.clientY - r.top : r.height/2) - 20;
+  p.style.left = x + 'px'; p.style.top = y + 'px';
+  $('stage').appendChild(p);
+  setTimeout(() => p.remove(), 760);
+}
+
+/* ---------- wallet ---------- */
+async function connect(){
+  try{
+    const accs = await eth('eth_requestAccounts');
+    acct = accs[0];
+    const cid = await eth('eth_chainId');
+    if (parseInt(cid,16) !== CHAIN_ID){
+      try{
+        await eth('wallet_switchEthereumChain', [{ chainId: CHAIN_HEX }]);
+      }catch(err){
+        if (err.code === 4902){
+          await eth('wallet_addEthereumChain', [{
+            chainId: CHAIN_HEX,
+            chainName: 'Sepolia',
+            nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+            rpcUrls: [RPC_HINT],
+            blockExplorerUrls: ['https://sepolia.etherscan.io']
+          }]);
+        }
+      }
+    }
+    $('connect').textContent = 'Connected ' + short(acct);
+    msg('Wallet ready. Tap the hamster.');
+    if (finished) $('submit').disabled = score <= 0;
+    loadBoard();
+  }catch(err){
+    msg('Connect failed: ' + (err.message || err));
+  }
+}
+
+function encodeUint(n){ return BigInt(n).toString(16).padStart(64,'0'); }
+
+async function submit(){
+  if (!acct || score <= 0) return;
+  $('submit').disabled = true;
+  try{
+    const data = SEL.submit + encodeUint(score) + encodeUint(blocks);
+    msg('Waiting for wallet signature…');
+    const h = await eth('eth_sendTransaction', [{ from: acct, to: CONTRACT, data }]);
+    msg('Submitted ✓ ' + h.slice(0,18) + '…  (mining in a few seconds)');
+    setTimeout(loadBoard, 9000);
+  }catch(err){
+    msg('Submit failed: ' + ((err && err.message) || err));
+    $('submit').disabled = false;
+  }
+}
+
+/* ---------- leaderboard ---------- */
+async function loadBoard(){
+  if (!acct) return;
+  try{
+    const raw = await call(CONTRACT, SEL.page + encodeUint(0) + encodeUint(8));
+    const body = raw.replace(/^0x/, '');
+    if (body.length < 128) return;
+    const off = Number(BigInt('0x' + body.slice(0,64))) * 2;
+    const len = Number(BigInt('0x' + body.slice(off, off+64)));
+    const start = off + 64;
+    const rows = [];
+    for (let i = 0; i < Math.min(len, 8); i++){
+      const base = start + i*128;
+      const player = '0x' + body.slice(base+24, base+64);
+      const sc = Number(BigInt('0x' + body.slice(base+64, base+128)));
+      rows.push({ player, sc });
+    }
+    rows.sort((a,b) => b.sc - a.sc);
+    const box = $('rows');
+    box.innerHTML = rows.length
+      ? rows.map((r,i) =>
+          `<div class="brow"><span class="rk">${i+1}</span><span class="ad">${short(r.player)}</span><span class="sc">${r.sc}</span></div>`
+        ).join('')
+      : '<div class="brow"><span class="ad">no scores yet — be the first</span></div>';
+  }catch(e){
+    $('rows').innerHTML = '<div class="brow"><span class="ad">leaderboard needs a wallet connection</span></div>';
+  }
+}
+
+/* ---------- wire ---------- */
+$('stage').addEventListener('pointerdown', e => { if (!running && !finished) startGame(); else if (running) tap(e); });
+$('start').addEventListener('pointerdown', e => { e.stopPropagation(); startGame(); });
+$('connect').addEventListener('click', connect);
+$('submit').addEventListener('click', submit);
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space'){ e.preventDefault(); if (!running && !finished) startGame(); else tap(null); }
+});
+if (window.ethereum && window.ethereum.on){
+  window.ethereum.on('accountsChanged', a => { acct = a[0] || null; $('connect').textContent = acct ? 'Connected ' + short(acct) : 'Connect wallet'; loadBoard(); });
+  window.ethereum.on('chainChanged', () => location.reload());
+}
+$('ca').textContent = CONTRACT.slice(0,6) + '…' + CONTRACT.slice(-4);
+</script>
+</body>
+</html>
