@@ -92,6 +92,15 @@
   @keyframes fadein{from{background:#96fce416}to{background:transparent}}
   @media(max-width:640px){.arow{grid-template-columns:58px 1fr 54px;font-size:11px}.arow .gs,.arow .tm{display:none}}
 
+  .hours{display:grid;grid-template-columns:repeat(24,1fr);gap:3px;background:var(--panel);
+         border:1px solid var(--line);border-radius:14px;padding:12px}
+  .hr{aspect-ratio:1/2.4;border-radius:3px;background:#1a1430;transition:.4s;position:relative}
+  .hours-lbl{display:grid;grid-template-columns:repeat(24,1fr);gap:3px;margin-top:6px;padding:0 12px;
+             font-size:8.5px;color:#6d6191;text-align:center}
+  .roundbar{display:flex;align-items:center;gap:10px;justify-content:center;margin-top:22px;
+            background:#100c1c;border:1px solid var(--line);border-radius:12px;padding:11px 16px;font-size:12.5px}
+  .roundbar b{color:var(--gold);font-variant-numeric:tabular-nums}
+  .roundbar .sep{color:#3a2d5e}
   .status{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--dim);margin-top:22px;justify-content:center}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--mint2);box-shadow:0 0 9px var(--mint2)}
   .dot.warn{background:var(--gold);box-shadow:0 0 9px var(--gold)}
@@ -136,6 +145,12 @@
     </div>
   </div>
 
+  <div class="roundbar">
+    <span>ROUND</span> <b id="round">—</b>
+    <span class="sep">·</span>
+    <span id="roundstate">every 10 minutes</span>
+  </div>
+
   <p class="quote">"Squeektoshi sets the pace. <b>We just write it down.</b>"</p>
 
   <section>
@@ -171,6 +186,15 @@
       <div class="arow hd"><span>#</span><span>TX HASH</span><span colspan="2">FROM</span><span></span></div>
       <div id="txrows"><div class="arow"><span class="hs">waiting for the next turn…</span></div></div>
     </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <h2>SQUEEKTOSHI'S SLEEP SCHEDULE</h2>
+      <span class="hint">when the network is busy vs quiet · UTC · from the last 100 blocks</span>
+    </div>
+    <div class="hours" id="hours"></div>
+    <div class="hours-lbl" id="hourslbl"></div>
   </section>
 
   <div class="status"><span class="dot" id="dot"></span><span id="stat">connecting to Sepolia…</span></div>
@@ -252,6 +276,39 @@ function paintHeat(blocks){
   }
 }
 
+function paintHours(blocks){
+  const box = $('hours');
+  if(!box.children.length){
+    for(let i=0;i<24;i++){ const d=document.createElement('div'); d.className='hr'; box.appendChild(d); }
+    const lb=$('hourslbl');
+    for(let i=0;i<24;i++){ const sp=document.createElement('span'); sp.textContent=i%6===0?String(i).padStart(2,'0'):''; lb.appendChild(sp); }
+  }
+  const sum=Array(24).fill(0), cnt=Array(24).fill(0);
+  blocks.forEach(b=>{
+    if(!b) return;
+    const h=new Date(hexToNum(b.timestamp)*1000).getUTCHours();
+    sum[h]+=b.transactions.length; cnt[h]++;
+  });
+  const avg=sum.map((v,i)=>cnt[i]?v/cnt[i]:0);
+  const mx=Math.max(...avg,1);
+  [...box.children].forEach((el,i)=>{
+    const v=avg[i];
+    if(!cnt[i]){ el.style.background='#161027'; el.title='hour '+String(i).padStart(2,'0')+':00 UTC · no blocks seen'; return; }
+    const r=v/mx;
+    el.style.background = r<.2?'#233452': r<.45?'#2a6f78': r<.7?'#3fc9a6': r<.9?'#96fce4':'#ffd78a';
+    el.title='hour '+String(i).padStart(2,'0')+':00 UTC · '+Math.round(v)+' tx/block avg';
+  });
+}
+
+function paintRound(ts){
+  const r = Math.floor(ts / 600);          // 10 minute rounds
+  const left = 600 - (ts % 600);
+  $('round').textContent = '#' + r.toLocaleString('en-US');
+  $('roundstate').textContent = left > 60
+    ? 'ends in ' + Math.floor(left/60) + 'm ' + (left%60) + 's'
+    : 'ends in ' + left + 's';
+}
+
 function paintTxs(block){
   const box = $('txrows');
   const list = (block.transactions || []).slice(0, 5);
@@ -315,6 +372,7 @@ async function turn(){
 
     addRow(b, true);
     paintTxs(b);
+    paintRound(ts);
     const txs100 = seen.reduce((a,x)=>a + (x ? x.transactions.length : 0), 0);
     const avg = seen.length > 1 && seen[0] && seen[seen.length-1]
       ? ((hexToNum(seen[0].timestamp) - hexToNum(seen[seen.length-1].timestamp)) / (seen.length-1)).toFixed(1)
@@ -323,6 +381,7 @@ async function turn(){
     seen.unshift(b);
     if (seen.length > 100) seen.pop();
     paintHeat(seen);
+    paintHours(seen);
 
     $('dot').className = 'dot';
     $('stat').textContent = 'wheel turning · block #' + fmt(n) + ' · ' + b.transactions.length + ' tx';
@@ -343,6 +402,9 @@ async function init(){
     const blocks = (await Promise.all(jobs)).filter(Boolean);
     seen.push(...blocks);
     paintHeat(seen);
+    paintHours(seen);
+    if (blocks[0]) paintRound(hexToNum(blocks[0].timestamp));
+    paintHours(seen);
     blocks.slice(0, 14).forEach((b, i) => addRow(b, false));
     if (blocks[0]){
       const n = hexToNum(blocks[0].number);
