@@ -1,59 +1,62 @@
 # SqueekSend 🐹
 
-A tiny, honest HYPE transfer tool for **Squeekchain** (chain id 99901).
+A tiny, honest **ETH** transfer tool for **Squeekchain**, the hamster-powered proof-of-work toychain
+that runs on **Ethereum Sepolia (chain id 11155111)**.
 
-Connect a wallet, see what is in it, send HYPE with a memo. No backend, no tracking, no sign-up, no
-proxying — every read and every write goes straight to the wallet provider you already trust.
+Connect a wallet, see what is in it, send ETH. No backend, no tracking, no sign-up, no proxying —
+every read and every write goes straight to the wallet provider you already trust.
 
 ## Why this exists
 
 Most chain tools want an account, an RPC key, or a signature you did not ask for. SqueekSend does one
-thing: move HYPE from your wallet to another address, on Squeekchain, with the chain id checked before
-anything is signed.
+thing: move ETH from your wallet to another address, on the Sepolia network Squeekchain lives on, with
+the chain id checked before anything is signed.
 
 ## What it uses from Squeekchain
 
 | Call | Where it goes |
 |---|---|
-| `eth_chainId` | your wallet provider — must be `0x1863d` (99901) |
+| `eth_chainId` | your wallet provider — must be `0xaa36a7` (11155111, Sepolia) |
 | `eth_getBalance` | your wallet provider — balance of the connected address |
-| `eth_sendTransaction` | your wallet provider — plain HYPE transfer, no calldata |
+| `eth_sendTransaction` | your wallet provider — plain ETH transfer, no calldata |
 
 There is no hidden batch call, no approval, no `transferFrom`. The only thing the page can ever ask you
-to sign is a native HYPE transfer to an address you typed.
+to sign is a native ETH transfer to an address you typed.
+
+If the wallet is on another network, the page calls `wallet_switchEthereumChain` and falls back to
+`wallet_addEthereumChain` so a fresh wallet can jump straight onto Sepolia.
 
 ## Features
 
-- Connect / reconnect wallet, with automatic **Squeekchain** network detection
-- One-click `wallet_addEthereumChain` if the chain is missing from your wallet
-- Live balance, refreshed after each send
+- Connect / reconnect wallet, with automatic network detection
+- One-click `wallet_switchEthereumChain` / `wallet_addEthereumChain` for Sepolia
+- Live balance in ETH, refreshed after each send
 - Address validation before the wallet prompt appears
-- Optional off-chain memo (kept in the page only — never transmitted)
-- Zero dependencies, zero build step, one HTML file
+- Zero dependencies, zero build step, one HTML file (7 KB)
 
 ## Run locally
 
 ```bash
-git clone <this repo>
-cd <this repo>
+git clone https://github.com/sinkin13/squeeksend
+cd squeeksend
 python3 -m http.server 8080
 # open http://localhost:8080
 ```
 
-## Deploy
+## Live
 
-Static. Any host works — GitHub Pages, Cloudflare Pages, Netlify, or your own server.
+https://neikuu.bond
 
 ## Notes
 
-- Testnet only. Squeekchain is a Sepolia testnet chain; nothing here touches real value.
+- Sepolia testnet only. Nothing here touches real value.
 - The page never reads, stores or transmits a private key.
-- Contract addresses, if you add them later, must be checked by hand — this page ships with none on purpose.
+- No contract addresses ship with this page on purpose — it only moves native ETH.
+
+```
+squeekchain-project: ef49d289-7dae-4374-87b2-ac6188a2159d
+```
 
 ## Licence
 
 MIT
-
----
-
-squeekchain-project: ef49d289-7dae-4374-87b2-ac6188a2159d
