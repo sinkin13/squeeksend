@@ -117,9 +117,9 @@
       <div class="row"><span>Block height</span><span class="mv" id="mblock">—</span></div>
       <div class="row"><span>Distance today</span><span class="mv" id="mdist">—</span></div>
       <div class="row"><span>Brushstrokes</span><span class="mv" id="mstrokes">0</span></div>
-      <div class="row"><span>Work per stroke</span><span class="mv">1,000 turns</span></div>
+      <div class="row"><span>Work per stroke</span><span class="mv" id="mstroke1">1,500 turns</span></div>
       <p class="pillnote">
-        The painting is derived from her <b>cumulative work units</b>. Every 1,000 turns adds one
+        The painting is derived from her <b>cumulative work units</b>. Every 1,500 turns adds one
         stroke, in a colour picked by the round that closed. It only ever grows — never redrawn.
       </p>
     </div>
@@ -359,9 +359,23 @@ function renderEntries(){
 
 /* ---------------- polling ---------------- */
 async function getJSON(path){
-  const r = await fetch(API + path, { cache: 'no-store' });
-  if (!r.ok) throw new Error('http ' + r.status);
-  return r.json();
+  const direct = API + path;
+  const targets = [
+    direct,
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(direct),
+    'https://corsproxy.io/?' + encodeURIComponent(direct)
+  ];
+  let lastErr = null;
+  for (const url of targets){
+    try{
+      const r = await fetch(url, { cache: 'no-store' });
+      if (!r.ok) throw new Error('http ' + r.status);
+      const j = await r.json();
+      if (j && (j.measurement || j.events || j.schemaVersion)) return j;
+      throw new Error('bad payload');
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error('all endpoints failed');
 }
 
 async function refresh(){
