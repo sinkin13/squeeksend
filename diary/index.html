@@ -292,8 +292,13 @@ function entryFor(ev){
       text:`<em>${sqk(p.amountBaseUnits)} SQK</em> locked, the way seeds are buried. All of it rooted in one small animal's afternoon.` };
   }
   if (t === 'nft.merged'){
-    return { tone:'violet', tag:'MERGE #' + (p.tokenId || '?'),
-      text:`Squeeks <em>#${p.tokenId || '?'}</em> was merged into another. She kept running straight through it.` };
+    const ids = p.sourceTokenIds || p.inputTokenIds || p.tokenIds;
+    const label = Array.isArray(ids) && ids.length ? ids.join(' + #') : (p.tokenId || null);
+    const n = p.basePower || p.resultPower || p.power;
+    return { tone:'violet', tag: 'MERGE' + (label ? ' #' + label : ''),
+      text: label
+        ? `Squeeks <em>#${label}</em> was merged into one${n ? ' of power ' + fmt(n) : ''}. She kept running straight through it.`
+        : `Two Squeeks became one${n ? ', power ' + fmt(n) : ''}. She kept running straight through it.` };
   }
   if (t === 'nft.deposited'){
     return { tone:'violet', tag:'SQUEEKS #' + (p.tokenId || '?'),
