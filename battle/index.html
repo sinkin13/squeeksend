@@ -360,6 +360,7 @@ function finish(alive){
 
 /* ---------- fx ---------- */
 function burst(x, y, color, n){
+  if (particles.length > 260) return;   // jaga frame rate
   for (let i = 0; i < n; i++){
     const a = Math.random() * Math.PI * 2, s = 0.6 + Math.random() * 2.6;
     particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 22 + Math.random()*16, color });
@@ -553,8 +554,11 @@ function startMatch(){
   $('ov').classList.add('hide');
   running = true; lastTs = 0; acc = 0;
   raf = requestAnimationFrame(loop);
-  setInterval(syncRoster, 250);
-  setInterval(() => { if (running) draw(); }, 100);
+  // roster disinkron tiap 600ms saja (DOM mahal), draw sudah 60fps dari rAF
+  const rosterTimer = setInterval(() => {
+    if (running) syncRoster();
+    else clearInterval(rosterTimer);
+  }, 600);
 }
 
 $('start').addEventListener('click', startMatch);
