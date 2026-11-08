@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Squeek Battle — 24 hamsters, one crown</title>
+<meta name="description" content="A deterministic 2D battle royale on Squeekchain. 24 AI hamsters drop in, grab weapons, and fight inside a shrinking Cat Storm. Every match is a pure function of its seed, so anyone can replay it and check the winner.">
+<style>
+  :root{
+    --bg:#06050c; --panel:#100c1c; --line:#241c3a; --ink:#f4f0ff; --dim:#9c8fc4;
+    --mint:#96fce4; --mint2:#3fc9a6; --gold:#ffd78a; --violet:#b48cff; --hot:#ff8f85; --blue:#8cc4ff;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{
+    background:radial-gradient(1200px 600px at 50% -10%,#2a1c4d,#06050c 62%);
+    color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:18px 14px 54px;
+  }
+  header{text-align:center;margin-bottom:14px}
+  .kicker{font-size:10.5px;letter-spacing:.3em;color:var(--dim)}
+  h1{font-size:clamp(26px,5.5vw,40px);letter-spacing:-1px;margin:8px 0 4px;font-weight:800}
+  h1 span{background:linear-gradient(120deg,var(--mint),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{font-size:12.5px;color:var(--dim);max-width:520px;line-height:1.6}
+
+  .stage{position:relative;width:100%;max-width:660px;margin-top:14px}
+  canvas{width:100%;height:auto;display:block;border-radius:18px;border:1px solid var(--line);
+         background:#0a0714;box-shadow:0 26px 70px #000a,inset 0 0 60px #0008}
+
+  .hud{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;
+       pointer-events:none;font-size:11.5px;letter-spacing:.08em}
+  .pill{background:#0a0714d9;border:1px solid var(--line);border-radius:999px;padding:5px 11px;
+        color:var(--dim);backdrop-filter:blur(6px)}
+  .pill b{color:var(--mint);font-variant-numeric:tabular-nums}
+  .pill.warn b{color:var(--hot)}
+
+  .feed{position:absolute;bottom:10px;left:10px;right:10px;display:flex;flex-direction:column;gap:4px;
+        pointer-events:none;font-size:11px}
+  .fi{background:#0a0714cc;border:1px solid #ffffff0d;border-radius:7px;padding:4px 9px;color:var(--dim);
+      backdrop-filter:blur(4px);animation:fin .3s;width:fit-content;max-width:100%}
+  @keyframes fin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .fi b{color:var(--ink)}
+
+  .overlay{position:absolute;inset:0;display:grid;place-items:center;background:#06050ce8;
+           backdrop-filter:blur(4px);border-radius:18px;text-align:center;padding:22px}
+  .overlay h2{font-size:22px;margin-bottom:8px}
+  .overlay p{font-size:12.5px;color:var(--dim);line-height:1.65;max-width:330px}
+  .hide{display:none!important}
+
+  button{font:inherit;cursor:pointer;border-radius:11px;border:1px solid var(--line);
+         background:#221a38;color:var(--ink);padding:11px 17px;transition:.15s}
+  button:hover:not(:disabled){border-color:var(--mint2);transform:translateY(-1px)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:linear-gradient(135deg,var(--mint),var(--mint2));color:#06231c;border:none;font-weight:800}
+
+  .controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px;width:100%;max-width:660px}
+  .controls input{font:inherit;font-size:12.5px;padding:11px 13px;border-radius:11px;border:1px solid var(--line);
+    background:#0f0b1c;color:var(--ink);font-family:var(--mono);width:170px}
+  .controls input:focus{outline:none;border-color:var(--mint2)}
+
+  .roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:5px;
+          width:100%;max-width:660px;margin-top:14px}
+  .rf{aspect-ratio:1/1;border-radius:9px;background:var(--panel);border:1px solid var(--line);
+      display:grid;place-items:center;font-size:19px;position:relative;transition:.2s}
+  .rf.dead{opacity:.22;filter:grayscale(1)}
+  .rf.picked{box-shadow:0 0 0 2px var(--mint) inset}
+  .rf .kid{position:absolute;bottom:1px;right:3px;font-size:8px;color:var(--gold);font-family:var(--mono)}
+
+  .info{width:100%;max-width:660px;margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media(max-width:520px){.info{grid-template-columns:1fr}}
+  .ib{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .ib .k{font-size:9px;letter-spacing:.18em;color:var(--dim);margin-bottom:4px}
+  .ib .v{font-family:var(--mono);font-size:12.5px;color:var(--mint);word-break:break-all}
+
+  footer{margin-top:26px;font-size:11px;color:#6b6088;text-align:center;line-height:1.7;max-width:560px}
+  footer a{color:var(--mint2);text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">SQUEEKCHAIN · SEPOLIA · DETERMINISTIC</div>
+  <h1>Squeek <span>Battle</span></h1>
+  <p class="sub">24 AI hamsters drop into the arena, grab weapons and fight inside a shrinking Cat Storm. Every match is a pure function of its seed — replay the same seed anywhere and the same hamster wins.</p>
+</header>
+
+<div class="stage">
+  <canvas id="cv" width="720" height="720"></canvas>
+  <div class="hud">
+    <div class="pill">ALIVE <b id="alive">24</b></div>
+    <div class="pill" id="stormpill">STORM <b id="storm">—</b></div>
+    <div class="pill">T<span id="tick">0</span>s</div>
+  </div>
+  <div class="feed" id="feed"></div>
+  <div class="overlay" id="ov">
+    <div>
+      <h2 id="ovt">Drop 24 hamsters</h2>
+      <p id="ovp">Pick a favourite if you like — you can follow one hamster with a cyan ring. The seed decides everything.</p>
+      <div style="margin-top:16px"><button class="primary" id="start">▶ START MATCH</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <input id="seed" placeholder="seed" value="1001" inputmode="numeric">
+  <button id="rand">🎲 Random seed</button>
+  <button id="speed">⏩ 1×</button>
+  <button id="submit" disabled>⛓️ Record on-chain</button>
+</div>
+
+<div class="roster" id="roster"></div>
+
+<div class="info">
+  <div class="ib"><div class="k">CONTRACT</div><div class="v" id="ca">0x06DB…3422</div></div>
+  <div class="ib"><div class="k">LAST MATCH</div><div class="v" id="lastmatch">—</div></div>
+</div>
+
+<footer>
+  Deterministic battle royale for <a href="https://squeekchain.com" target="_blank" rel="noopener">Squeekchain</a> on Ethereum Sepolia (11155111).
+  The match runs entirely in your browser from a seeded PRNG — no server, no randomness you can't audit.
+  Recording writes seed + winner + survivors + duration to <span style="font-family:var(--mono)">SqueekBattle</span>.
+</footer>
+
+<script>
+/* ============================================================
+   SqueekBattle — deterministic 2D battle royale
+   Everything below is a pure function of the seed.
+   ============================================================ */
+const CHAIN_ID = 11155111;
+const CHAIN_HEX = '0x' + CHAIN_ID.toString(16);
+const CONTRACT = '0x06DB724B69e5b264115845A948c4944D4f834422';
+const RPC_HINT = 'https://ethereum-sepolia-rpc.publicnode.com';
+const SEL_RECORD = '0xc7a237bd'; // recordMatch(uint64,uint8,uint8,uint16)
+const SEL_PAGE   = '0xebb9e69c'; // page(uint256,uint256)
+
+const W = 720, H = 720;
+const N = 24;
+const TICK_MS = 1000 / 60;        // fixed logical step
+const MAX_TICKS = 60 * 180;       // hard cap: 3 minutes of sim
+
+const FACES = ['🐹','🐭','🐀','🦔','🐿️','🐇','🦘','🦡'];
+const NAMES = ['Toshi','Mochi','Nugget','Pixel','Crumbs','Biscuit','Peanut','Zippy','Bandit','Momo',
+               'Squeak','Chomp','Waffle','Hazel','Toffee','Pip','Nibbles','Gizmo','Tofu','Boba',
+               'Sprout','Cheeks','Dumpling','Yuzu'];
+const WEAPONS = [
+  { id:'paw',  name:'Paws',   dmg:4,  range:26,  cd:34, icon:'👊' },
+  { id:'axe',  name:'Axe',    dmg:16, range:34,  cd:54, icon:'🪓' },
+  { id:'bow',  name:'Bow',    dmg:11, range:170, cd:66, icon:'🏹' },
+  { id:'bomb', name:'Bomb',   dmg:26, range:120, cd:110, icon:'💣' }
+];
+
+/* ---------- seeded RNG (mulberry32) ---------- */
+function makeRng(seed){
+  let a = seed >>> 0;
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/* ---------- state ---------- */
+let seed = 1001, rng = Math.random;
+let units = [], pickups = [], particles = [], feedLines = [];
+let tick = 0, stormR = 560, stormTick = 0, running = false, finished = false;
+let winner = null, follow = -1, speedMul = 1, acc = 0, raf = null, lastTs = 0;
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+
+function reset(seedValue){
+  seed = seedValue >>> 0;
+  rng = makeRng(seed);
+  units = []; pickups = []; particles = []; feedLines = [];
+  tick = 0; stormTick = 0; stormR = 560; winner = null; finished = false;
+  follow = -1;
+  $('alive').textContent = N;
+  $('tick').textContent = '0';
+  $('storm').textContent = '—';
+  $('feed').innerHTML = '';
+  $('submit').disabled = true;
+  $('lastmatch').textContent = '—';
+
+  for (let i = 0; i < N; i++){
+    const ang = rng() * Math.PI * 2;
+    const rad = 120 + rng() * 330;
+    units.push({
+      id: i,
+      name: NAMES[i % NAMES.length] + (i >= NAMES.length ? i : ''),
+      face: FACES[Math.floor(rng() * FACES.length)],
+      x: W/2 + Math.cos(ang) * rad,
+      y: H/2 + Math.sin(ang) * rad,
+      hp: 100, maxHp: 100,
+      weapon: WEAPONS[0],
+      cd: Math.floor(rng() * 20),
+      kills: 0,
+      target: -1,
+      vx: 0, vy: 0,
+      alive: true,
+      hurt: 0
+    });
+  }
+
+  // scatter weapon pickups
+  for (let i = 0; i < 26; i++){
+    const w = WEAPONS[1 + Math.floor(rng() * (WEAPONS.length - 1))];
+    pickups.push({
+      x: 80 + rng() * (W - 160),
+      y: 80 + rng() * (H - 160),
+      weapon: w, taken: false
+    });
+  }
+  renderRoster();
+}
+
+/* ---------- sim step (deterministic) ---------- */
+function step(){
+  tick++;
+
+  // storm shrinks every 5s (300 ticks) after a 12s grace
+  if (tick > 720 && tick % 300 === 0 && stormR > 110){
+    stormR -= 62;
+    stormTick = tick;
+  }
+
+  const alive = units.filter(u => u.alive);
+
+  // targeting: nearest alive opponent (stable order = deterministic tie-break)
+  for (const u of alive){
+    let best = -1, bd = Infinity;
+    for (const v of alive){
+      if (v.id === u.id) continue;
+      const d = (u.x - v.x) ** 2 + (u.y - v.y) ** 2;
+      if (d < bd){ bd = d; best = v.id; }
+    }
+    u.target = best;
+  }
+
+  for (const u of alive){
+    const t = u.target >= 0 ? units[u.target] : null;
+
+    // 1) storm avoidance has priority
+    const dcx = u.x - W/2, dcy = u.y - H/2;
+    const distC = Math.hypot(dcx, dcy);
+    const inStorm = distC > stormR - 26;
+
+    let dx = 0, dy = 0;
+
+    if (inStorm){
+      dx = -dcx; dy = -dcy;                    // run to centre
+    } else if (u.weapon.id === 'paw'){
+      // go find a weapon
+      let bp = null, bpd = Infinity;
+      for (const p of pickups){
+        if (p.taken) continue;
+        const d = (u.x - p.x) ** 2 + (u.y - p.y) ** 2;
+        if (d < bpd){ bpd = d; bp = p; }
+      }
+      if (bp && bpd > 900){ dx = bp.x - u.x; dy = bp.y - u.y; }
+      else if (t) { dx = t.x - u.x; dy = t.y - u.y; }
+    } else if (t){
+      // keep weapon range, then approach
+      const d = Math.hypot(t.x - u.x, t.y - u.y);
+      const want = u.weapon.range * 0.72;
+      if (d > want){ dx = t.x - u.x; dy = t.y - u.y; }
+      else if (d < want * 0.6){ dx = -(t.x - u.x); dy = -(t.y - u.y); }
+    }
+
+    const len = Math.hypot(dx, dy) || 1;
+    const sp = 34 / 60 * 1.6;                 // px per tick
+    u.x += dx / len * sp;
+    u.y += dy / len * sp;
+    u.x = Math.max(14, Math.min(W - 14, u.x));
+    u.y = Math.max(14, Math.min(H - 14, u.y));
+
+    // weapon pickup
+    for (const p of pickups){
+      if (p.taken) continue;
+      if (Math.hypot(u.x - p.x, u.y - p.y) < 18){
+        p.taken = true;
+        u.weapon = p.weapon;
+        pushFeed(`${u.face} <b>${u.name}</b> grabbed ${p.weapon.icon} ${p.weapon.name}`);
+      }
+    }
+
+    // attack
+    if (u.cd > 0) u.cd--;
+    if (t && u.cd === 0){
+      const d = Math.hypot(t.x - u.x, t.y - u.y);
+      if (d <= u.weapon.range){
+        u.cd = u.weapon.cd;
+        t.hp -= u.weapon.dmg;
+        t.hurt = 8;
+        burst(t.x, t.y, u.weapon.id === 'bomb' ? '#ff8f85' : '#96fce4', 8);
+        if (t.hp <= 0){
+          t.alive = false; t.hp = 0;
+          u.kills++;
+          pushFeed(`${u.face} <b>${u.name}</b> ${u.weapon.icon} <b>${t.name}</b>`);
+          burst(t.x, t.y, '#ffd78a', 26);
+        }
+      }
+    }
+
+    // storm damage
+    if (inStorm){
+      u.hp -= 0.22;
+      u.hurt = 4;
+      if (u.hp <= 0){
+        u.alive = false;
+        pushFeed(`🌪️ <b>${u.name}</b> was caught by the storm`);
+      }
+    }
+
+    if (u.hurt > 0) u.hurt--;
+  }
+
+  // particles
+  for (let i = particles.length - 1; i >= 0; i--){
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  const aliveNow = units.filter(u => u.alive);
+  $('alive').textContent = aliveNow.length;
+  $('tick').textContent = Math.floor(tick / 60);
+  $('storm').textContent = Math.round(stormR);
+  $('stormpill').className = 'pill' + (stormR < 220 ? ' warn' : '');
+
+  if (aliveNow.length <= 1 || tick >= MAX_TICKS){
+    finish(aliveNow);
+  }
+}
+
+function finish(alive){
+  running = false; finished = true;
+  cancelAnimationFrame(raf);
+
+  if (alive.length === 1){
+    winner = alive[0];
+  } else if (alive.length > 1){
+    // timeout: highest hp wins, ties by lowest id (deterministic)
+    winner = alive.slice().sort((a,b) => (b.hp - a.hp) || (a.id - b.id))[0];
+  } else {
+    winner = null;
+  }
+
+  $('ovt').textContent = winner ? `${winner.face} ${winner.name} wins!` : 'Nobody survived';
+  $('ovp').textContent = winner
+    ? `${winner.kills} kill${winner.kills === 1 ? '' : 's'} · seed ${seed} · ${Math.floor(tick/60)}s. Record it on-chain so anyone can replay this exact match.`
+    : `Seed ${seed} produced no survivor. Try another seed.`;
+  $('ov').classList.remove('hide');
+  $('start').textContent = '↻ NEW MATCH';
+  $('submit').disabled = !winner;
+  $('lastmatch').textContent = winner ? `seed ${seed} → #${winner.id} ${winner.name} (${winner.kills}k)` : '—';
+  burst(winner ? winner.x : W/2, winner ? winner.y : H/2, '#ffd78a', 60);
+  draw();
+}
+
+/* ---------- fx ---------- */
+function burst(x, y, color, n){
+  for (let i = 0; i < n; i++){
+    const a = Math.random() * Math.PI * 2, s = 0.6 + Math.random() * 2.6;
+    particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 22 + Math.random()*16, color });
+  }
+}
+function pushFeed(html){
+  const el = document.createElement('div');
+  el.className = 'fi'; el.innerHTML = html;
+  const box = $('feed');
+  box.appendChild(el);
+  while (box.children.length > 5) box.removeChild(box.firstChild);
+  setTimeout(() => { el.style.transition = 'opacity .4s'; el.style.opacity = '0'; setTimeout(()=>el.remove(), 420); }, 4200);
+}
+
+/* ---------- render ---------- */
+function draw(){
+  // background
+  ctx.fillStyle = '#0a0714';
+  ctx.fillRect(0, 0, W, H);
+
+  // subtle grid
+  ctx.strokeStyle = '#151029';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < W; i += 60){
+    ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(W,i); ctx.stroke();
+  }
+
+  // storm
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0,0,W,H);
+  ctx.arc(W/2, H/2, stormR, 0, Math.PI*2, true);
+  ctx.fillStyle = '#3a0d1a99';
+  ctx.fill('evenodd');
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, stormR, 0, Math.PI*2);
+  ctx.strokeStyle = '#ff8f85aa';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([9,7]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // pickups
+  for (const p of pickups){
+    if (p.taken) continue;
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.font = '17px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.weapon.icon, p.x, p.y + 6);
+    ctx.restore();
+  }
+
+  // particles
+  for (const p of particles){
+    ctx.globalAlpha = Math.max(0, p.life / 34);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, 2.4, 2.4);
+  }
+  ctx.globalAlpha = 1;
+
+  // units
+  for (const u of units){
+    if (!u.alive) continue;
+    // hp ring
+    ctx.beginPath();
+    ctx.arc(u.x, u.y, 17, 0, Math.PI*2);
+    ctx.strokeStyle = '#1d1631'; ctx.lineWidth = 4; ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(u.x, u.y, 17, -Math.PI/2, -Math.PI/2 + Math.PI*2 * (u.hp/100));
+    ctx.strokeStyle = u.hp > 60 ? '#3fc9a6' : u.hp > 30 ? '#ffd78a' : '#ff8f85';
+    ctx.lineWidth = 4; ctx.stroke();
+
+    // follow ring
+    if (u.id === follow){
+      ctx.beginPath();
+      ctx.arc(u.x, u.y, 23, 0, Math.PI*2);
+      ctx.strokeStyle = '#96fce4'; ctx.lineWidth = 1.6; ctx.setLineDash([3,3]); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    ctx.font = '20px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(u.face, u.x, u.y + 7);
+
+    if (u.hurt > 0){
+      ctx.beginPath();
+      ctx.arc(u.x, u.y, 20, 0, Math.PI*2);
+      ctx.strokeStyle = '#ff8f85'; ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
+
+  // winner banner
+  if (finished && winner){
+    ctx.fillStyle = '#06050ccc';
+    ctx.fillRect(0, H/2 - 42, W, 84);
+    ctx.fillStyle = '#ffd78a';
+    ctx.font = 'bold 26px ui-sans-serif,system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${winner.face} ${winner.name} wins`, W/2, H/2 - 2);
+    ctx.fillStyle = '#9c8fc4';
+    ctx.font = '13px ui-monospace,Menlo';
+    ctx.fillText(`seed ${seed} · ${winner.kills} kills`, W/2, H/2 + 24);
+  }
+}
+
+/* ---------- loop ---------- */
+function loop(ts){
+  if (!running) return;
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min(80, ts - lastTs);
+  lastTs = ts;
+  acc += dt * speedMul;
+  let guard = 0;
+  while (acc >= TICK_MS && guard++ < 8){
+    step();
+    acc -= TICK_MS;
+    if (!running) break;
+  }
+  draw();
+  if (running) raf = requestAnimationFrame(loop);
+}
+
+/* ---------- roster ---------- */
+function renderRoster(){
+  const box = $('roster');
+  box.innerHTML = '';
+  for (const u of units){
+    const d = document.createElement('div');
+    d.className = 'rf' + (u.id === follow ? ' picked' : '') + (u.alive ? '' : ' dead');
+    d.dataset.id = u.id;
+    d.title = u.name;
+    d.innerHTML = u.face + (u.kills ? `<span class="kid">${u.kills}</span>` : '');
+    d.addEventListener('click', () => { follow = (follow === u.id ? -1 : u.id); renderRoster(); draw(); });
+    box.appendChild(d);
+  }
+}
+
+function syncRoster(){
+  const box = $('roster');
+  [...box.children].forEach((el, i) => {
+    const u = units[i];
+    if (!u) return;
+    el.className = 'rf' + (u.id === follow ? ' picked' : '') + (u.alive ? '' : ' dead');
+    el.innerHTML = u.face + (u.kills ? `<span class="kid">${u.kills}</span>` : '');
+  });
+}
+
+/* ---------- chain ---------- */
+async function eth(method, params){
+  if (!window.ethereum) throw new Error('No wallet found — install MetaMask or Rabby.');
+  return window.ethereum.request({ method, params });
+}
+const enc = n => BigInt(n).toString(16).padStart(64, '0');
+
+async function submitMatch(){
+  if (!winner) return;
+  $('submit').disabled = true;
+  try{
+    const cid = await eth('eth_chainId');
+    if (parseInt(cid, 16) !== CHAIN_ID){
+      try{ await eth('wallet_switchEthereumChain', [{ chainId: CHAIN_HEX }]); }
+      catch(e){
+        if (e.code === 4902){
+          await eth('wallet_addEthereumChain', [{
+            chainId: CHAIN_HEX, chainName: 'Sepolia',
+            nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+            rpcUrls: [RPC_HINT], blockExplorerUrls: ['https://sepolia.etherscan.io']
+          }]);
+        }
+      }
+    }
+    const accs = await eth('eth_requestAccounts');
+    const data = SEL_RECORD + enc(seed) + enc(winner.id) + enc(units.filter(u=>u.alive).length || 1) + enc(Math.max(1, Math.floor(tick/60)));
+    const tx = await eth('eth_sendTransaction', [{ from: accs[0], to: CONTRACT, data, gas: '0x2dc6c0' }]);
+    $('lastmatch').textContent = 'recording… ' + tx.slice(0,14) + '…';
+    setTimeout(() => { $('lastmatch').textContent = `seed ${seed} → #${winner.id} ${winner.name} ✓`; }, 9000);
+  }catch(e){
+    $('lastmatch').textContent = 'failed: ' + (e.message || e).slice(0, 40);
+    $('submit').disabled = false;
+  }
+}
+
+/* ---------- wire ---------- */
+function startMatch(){
+  const v = $('seed').value.trim();
+  reset(/^\d+$/.test(v) ? parseInt(v, 10) : 1001);
+  $('ov').classList.add('hide');
+  running = true; lastTs = 0; acc = 0;
+  raf = requestAnimationFrame(loop);
+  setInterval(syncRoster, 250);
+  setInterval(() => { if (running) draw(); }, 100);
+}
+
+$('start').addEventListener('click', startMatch);
+$('rand').addEventListener('click', () => {
+  $('seed').value = String(Math.floor(Math.random() * 900000) + 1000);
+});
+$('speed').addEventListener('click', () => {
+  speedMul = speedMul === 1 ? 2 : speedMul === 2 ? 4 : 1;
+  $('speed').textContent = '⏩ ' + speedMul + '×';
+});
+$('submit').addEventListener('click', submitMatch);
+
+reset(1001);
+draw();
+</script>
+</body>
+</html>
