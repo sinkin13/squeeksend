@@ -54,7 +54,6 @@ https://neikuu.bond
 - No contract addresses ship with this page on purpose — it only moves native ETH.
 
 ```
-squeekchain-project: ef49d289-7dae-4374-87b2-ac6188a2159d
 ```
 
 ## Licence
